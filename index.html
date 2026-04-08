@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Warframe DB</title>
+  <meta name="description" content="Warframe game database – browse Warframes, weapons, mods and more. Data updated nightly.">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ─── Header ─────────────────────────────────────────── -->
+  <header>
+    <div class="header-inner">
+      <a class="logo" href="#">
+        <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <polygon points="32,4 60,18 60,46 32,60 4,46 4,18" fill="none" stroke="currentColor" stroke-width="4"/>
+          <polygon points="32,14 50,23 50,41 32,50 14,41 14,23" fill="currentColor" opacity="0.3"/>
+          <circle cx="32" cy="32" r="6" fill="currentColor"/>
+        </svg>
+        <span>Warframe DB</span>
+      </a>
+
+      <nav>
+        <button data-cat="warframes" class="active">🛡️ Warframes</button>
+        <button data-cat="primary">🔫 Primary</button>
+        <button data-cat="secondary">🔧 Secondary</button>
+        <button data-cat="melee">⚔️ Melee</button>
+        <button data-cat="mods">🔮 Mods</button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ─── Main ──────────────────────────────────────────── -->
+  <main>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input id="search-input" type="search" placeholder="Search by name or description…" autocomplete="off">
+      </div>
+      <div class="filter-group">
+        <select id="filter-select" title="Filter"></select>
+        <select id="sort-select" title="Sort">
+          <option value="name">Name A–Z</option>
+          <option value="mastery">Mastery Rank</option>
+        </select>
+      </div>
+      <span id="count-label" style="color:var(--text-muted);font-size:0.85rem;white-space:nowrap"></span>
+    </div>
+
+    <!-- Grid -->
+    <div id="grid" class="grid"></div>
+
+    <!-- Pagination -->
+    <div id="pagination" class="pagination"></div>
+
+  </main>
+
+  <!-- ─── Footer ────────────────────────────────────────── -->
+  <footer>
+    <div class="footer-inner">
+      <div>
+        <strong>Warframe DB</strong> &mdash; Community data browser.
+        Game content &amp; data &copy; <a href="https://www.warframe.com" target="_blank" rel="noopener">Digital Extremes</a>.
+        Data sourced from <a href="https://warframestat.us" target="_blank" rel="noopener">warframestat.us</a>.
+      </div>
+      <div class="updated-at" id="updated-at"></div>
+    </div>
+  </footer>
+
+  <!-- ─── Detail Modal ──────────────────────────────────── -->
+  <div id="modal-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="icon-slot"></div>
+        <div>
+          <div class="modal-title"></div>
+          <div class="modal-subtitle"></div>
+        </div>
+        <button id="modal-close-btn" class="modal-close" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body"></div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
