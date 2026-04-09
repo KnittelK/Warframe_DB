@@ -426,6 +426,12 @@ main {
     white-space: nowrap;
 }
 
+.filter-chip.chip-search {
+    background: rgba(136, 176, 255, 0.15);
+    border-color: rgba(136, 176, 255, 0.4);
+    color: #88b0ff;
+}
+
 .chip-remove {
     background: none;
     border: none;

@@ -12,7 +12,7 @@
 
   // Active filters
   const filters = {
-    search: "",
+    searchTerms: new Set(),
     types: new Set(),
     compats: new Set(),
     stats: new Set(),
@@ -123,11 +123,11 @@
     autocompleteActiveIndex = -1;
   }
 
-  function selectAutocomplete(value) {
-    searchInput.value = value;
-    filters.search = value.toLowerCase();
-    applyFilters();
+  function selectAutocomplete(text) {
+    filters.searchTerms.add(text.toLowerCase());
+    searchInput.value = "";
     hideAutocomplete();
+    applyFilters();
   }
 
   function moveAutocomplete(dir) {
@@ -233,32 +233,44 @@
       "input",
       debounce(() => {
         const val = searchInput.value.trim();
-        filters.search = val.toLowerCase();
-        applyFilters();
         showAutocomplete(val);
       }, 200),
     );
 
     searchInput.addEventListener("keydown", (e) => {
-      if (autocompleteList.hidden) return;
       if (e.key === "ArrowDown") {
-        e.preventDefault();
-        moveAutocomplete(1);
+        if (!autocompleteList.hidden) {
+          e.preventDefault();
+          moveAutocomplete(1);
+        }
       } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        moveAutocomplete(-1);
+        if (!autocompleteList.hidden) {
+          e.preventDefault();
+          moveAutocomplete(-1);
+        }
       } else if (e.key === "Enter") {
+        e.preventDefault();
         const active = autocompleteList.querySelector("li.active");
         if (active) {
-          e.preventDefault();
           selectAutocomplete(active.textContent);
+        } else {
+          const val = searchInput.value.trim();
+          if (val) {
+            filters.searchTerms.add(val.toLowerCase());
+            searchInput.value = "";
+            hideAutocomplete();
+            applyFilters();
+          }
         }
       } else if (e.key === "Escape") {
         hideAutocomplete();
       }
     });
 
-    searchInput.addEventListener("blur", () => hideAutocomplete());
+    searchInput.addEventListener("blur", () => {
+      // Small delay to allow autocomplete clicks to register
+      setTimeout(() => hideAutocomplete(), 150);
+    });
 
     dropSearchInput.addEventListener(
       "input",
@@ -426,12 +438,12 @@
     });
 
     clearBtn.addEventListener("click", () => {
-      filters.search = "";
-      filters.dropSearch = "";
+      filters.searchTerms.clear();
       filters.types.clear();
       filters.compats.clear();
       filters.stats.clear();
       filters.rarities.clear();
+      filters.dropSearch = "";
       searchInput.value = "";
       dropSearchInput.value = "";
       hideAutocomplete();
@@ -469,14 +481,15 @@
   // ── Filtering ──────────────────────────────────
   function applyFilters() {
     filtered = allMods.filter((mod) => {
-      if (filters.search) {
-        const q = filters.search;
+      // Check all search terms (AND logic - all must match)
+      for (const q of filters.searchTerms) {
         const inName = mod.name.toLowerCase().includes(q);
         const inDesc = (mod.description || "").toLowerCase().includes(q);
         const inStats = (mod.statTypes || []).some((s) =>
           cleanText(s).toLowerCase().includes(q),
         );
-        if (!inName && !inDesc && !inStats) return false;
+        const inCompat = (mod.compatName || "").toLowerCase().includes(q);
+        if (!inName && !inDesc && !inStats && !inCompat) return false;
       }
 
       if (filters.types.size > 0 && !filters.types.has(mod.type)) {
@@ -539,9 +552,9 @@
     if (!container) return;
     container.innerHTML = "";
 
-    const addChip = (label, onRemove) => {
-      const chip = document.createElement("span");
-      chip.className = "filter-chip";
+    const addChip = (label, onRemove, type) => {
+      const chip = document.createElement("div");
+      chip.className = "filter-chip" + (type ? ` chip-${type}` : "");
       const text = document.createElement("span");
       text.textContent = label;
       const btn = document.createElement("button");
@@ -560,6 +573,18 @@
           if (cb.value === value) cb.checked = false;
         });
     };
+
+    // Search term chips
+    for (const term of filters.searchTerms) {
+      addChip(
+        `🔍 ${term}`,
+        () => {
+          filters.searchTerms.delete(term);
+          applyFilters();
+        },
+        "search",
+      );
+    }
 
     for (const v of filters.types) {
       addChip(v, () => {
