@@ -3,259 +3,273 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Warframe Mod Browser</title>
+        <title>Warframe DB</title>
         <link rel="stylesheet" href="css/style.css" />
     </head>
     <body>
         <header>
             <div class="header-inner">
-                <h1>Warframe Mod Browser</h1>
+                <h1>Warframe DB</h1>
+                <nav class="tab-nav" id="tab-nav">
+                    <button class="tab-btn active" data-tab="mods">Mods</button>
+                    <button class="tab-btn" data-tab="warframes">Warframes</button>
+                    <button class="tab-btn" data-tab="weapons">Weapons</button>
+                    <button class="tab-btn" data-tab="arcanes">Arcanes</button>
+                    <button class="tab-btn" data-tab="relics">Relics</button>
+                </nav>
                 <span id="meta-info" class="meta-info"></span>
             </div>
         </header>
 
         <main>
-            <aside class="sidebar" id="sidebar">
-                <div class="sidebar-body">
-                    <div class="filter-group">
-                        <label for="search" class="filter-label">Search</label>
-                        <div class="search-wrapper">
-                            <input
-                                type="search"
-                                id="search"
-                                placeholder="Type and press Enter to add filters..."
-                            />
-                            <ul
-                                id="autocomplete-list"
-                                class="autocomplete-list"
-                                hidden
-                            ></ul>
+            <div id="tab-mods" class="tab-pane active">
+                <aside class="sidebar" id="sidebar">
+                    <div class="sidebar-body">
+                        <div class="filter-group">
+                            <label for="search" class="filter-label">Search</label>
+                            <div class="search-wrapper">
+                                <input
+                                    type="search"
+                                    id="search"
+                                    placeholder="Type and press Enter to add filters..."
+                                />
+                                <ul
+                                    id="autocomplete-list"
+                                    class="autocomplete-list"
+                                    hidden
+                                ></ul>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="filter-group">
-                        <label class="filter-label">Filter Presets</label>
-                        <div class="preset-buttons">
-                            <button class="preset-btn" data-preset="primed">
-                                🌟 Primed
-                            </button>
-                            <button class="preset-btn" data-preset="corrupted">
-                                ⚠️ Corrupted
-                            </button>
-                            <button class="preset-btn" data-preset="nightmare">
-                                💀 Nightmare
-                            </button>
-                            <button class="preset-btn" data-preset="acolyte">
-                                🗡️ Acolyte
-                            </button>
+                        <div class="filter-group">
+                            <label class="filter-label">Filter Presets</label>
+                            <div class="preset-buttons">
+                                <button class="preset-btn" data-preset="primed">
+                                    🌟 Primed
+                                </button>
+                                <button class="preset-btn" data-preset="corrupted">
+                                    ⚠️ Corrupted
+                                </button>
+                                <button class="preset-btn" data-preset="nightmare">
+                                    💀 Nightmare
+                                </button>
+                                <button class="preset-btn" data-preset="acolyte">
+                                    🗡️ Acolyte
+                                </button>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="filter-group">
-                        <label class="filter-label">Quick Filters</label>
-                        <div class="quick-filter-grid">
+                        <div class="filter-group">
+                            <label class="filter-label">Quick Filters</label>
+                            <div class="quick-filter-grid">
+                                <button
+                                    class="quick-filter-btn"
+                                    data-rarity="Common"
+                                >
+                                    <span class="rarity-dot rarity-common"></span>
+                                    Common
+                                </button>
+                                <button
+                                    class="quick-filter-btn"
+                                    data-rarity="Uncommon"
+                                >
+                                    <span class="rarity-dot rarity-uncommon"></span>
+                                    Uncommon
+                                </button>
+                                <button class="quick-filter-btn" data-rarity="Rare">
+                                    <span class="rarity-dot rarity-rare"></span>
+                                    Rare
+                                </button>
+                                <button
+                                    class="quick-filter-btn"
+                                    data-rarity="Legendary"
+                                >
+                                    <span
+                                        class="rarity-dot rarity-legendary"
+                                    ></span>
+                                    Legendary
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="filter-group collapsible" id="group-type">
                             <button
-                                class="quick-filter-btn"
-                                data-rarity="Common"
+                                class="filter-group-header"
+                                aria-expanded="true"
                             >
-                                <span class="rarity-dot rarity-common"></span>
-                                Common
-                            </button>
-                            <button
-                                class="quick-filter-btn"
-                                data-rarity="Uncommon"
-                            >
-                                <span class="rarity-dot rarity-uncommon"></span>
-                                Uncommon
-                            </button>
-                            <button class="quick-filter-btn" data-rarity="Rare">
-                                <span class="rarity-dot rarity-rare"></span>
-                                Rare
-                            </button>
-                            <button
-                                class="quick-filter-btn"
-                                data-rarity="Legendary"
-                            >
+                                <span>Mod Type</span>
                                 <span
-                                    class="rarity-dot rarity-legendary"
+                                    class="filter-active-count"
+                                    id="count-type"
+                                    hidden
                                 ></span>
-                                Legendary
+                                <span class="toggle-arrow">▾</span>
                             </button>
+                            <div class="filter-group-body">
+                                <div
+                                    id="filter-type"
+                                    class="checkbox-list scrollable"
+                                ></div>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="filter-group collapsible" id="group-type">
-                        <button
-                            class="filter-group-header"
-                            aria-expanded="true"
+                        <div class="filter-group collapsible" id="group-compat">
+                            <button
+                                class="filter-group-header"
+                                aria-expanded="true"
+                            >
+                                <span>Weapon Category</span>
+                                <span
+                                    class="filter-active-count"
+                                    id="count-compat"
+                                    hidden
+                                ></span>
+                                <span class="toggle-arrow">▾</span>
+                            </button>
+                            <div class="filter-group-body">
+                                <div
+                                    id="filter-compat"
+                                    class="checkbox-list scrollable"
+                                ></div>
+                            </div>
+                        </div>
+
+                        <div
+                            class="filter-group collapsible collapsed"
+                            id="group-stat"
                         >
-                            <span>Mod Type</span>
-                            <span
-                                class="filter-active-count"
-                                id="count-type"
-                                hidden
-                            ></span>
-                            <span class="toggle-arrow">▾</span>
-                        </button>
-                        <div class="filter-group-body">
-                            <div
-                                id="filter-type"
-                                class="checkbox-list scrollable"
-                            ></div>
+                            <button
+                                class="filter-group-header"
+                                aria-expanded="false"
+                            >
+                                <span>Stat Type</span>
+                                <span
+                                    class="filter-active-count"
+                                    id="count-stat"
+                                    hidden
+                                ></span>
+                                <span class="toggle-arrow">▾</span>
+                            </button>
+                            <div class="filter-group-body">
+                                <input
+                                    type="search"
+                                    id="stat-search"
+                                    placeholder="Search stats..."
+                                    class="filter-subsearch"
+                                />
+                                <div
+                                    id="filter-stat"
+                                    class="checkbox-list scrollable"
+                                ></div>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="filter-group collapsible" id="group-compat">
-                        <button
-                            class="filter-group-header"
-                            aria-expanded="true"
+                        <div
+                            class="filter-group collapsible collapsed"
+                            id="group-rarity"
                         >
-                            <span>Weapon Category</span>
-                            <span
-                                class="filter-active-count"
-                                id="count-compat"
-                                hidden
-                            ></span>
-                            <span class="toggle-arrow">▾</span>
-                        </button>
-                        <div class="filter-group-body">
-                            <div
-                                id="filter-compat"
-                                class="checkbox-list scrollable"
-                            ></div>
+                            <button
+                                class="filter-group-header"
+                                aria-expanded="false"
+                            >
+                                <span>Advanced Rarity</span>
+                                <span
+                                    class="filter-active-count"
+                                    id="count-rarity"
+                                    hidden
+                                ></span>
+                                <span class="toggle-arrow">▾</span>
+                            </button>
+                            <div class="filter-group-body">
+                                <div id="filter-rarity" class="checkbox-list"></div>
+                            </div>
                         </div>
+
+                        <div
+                            class="filter-group collapsible collapsed"
+                            id="group-drop"
+                        >
+                            <button
+                                class="filter-group-header"
+                                aria-expanded="false"
+                            >
+                                <span>Drop Source</span>
+                                <span class="toggle-arrow">▾</span>
+                            </button>
+                            <div class="filter-group-body">
+                                <input
+                                    type="search"
+                                    id="drop-search"
+                                    placeholder="Mission, enemy, relic..."
+                                />
+                            </div>
+                        </div>
+
+                        <button id="clear-filters" class="btn-clear">
+                            Clear All Filters
+                        </button>
                     </div>
 
-                    <div
-                        class="filter-group collapsible collapsed"
-                        id="group-stat"
+                    <button
+                        class="sidebar-toggle"
+                        id="sidebar-toggle"
+                        aria-label="Toggle filters"
                     >
-                        <button
-                            class="filter-group-header"
-                            aria-expanded="false"
-                        >
-                            <span>Stat Type</span>
-                            <span
-                                class="filter-active-count"
-                                id="count-stat"
-                                hidden
-                            ></span>
-                            <span class="toggle-arrow">▾</span>
-                        </button>
-                        <div class="filter-group-body">
-                            <input
-                                type="search"
-                                id="stat-search"
-                                placeholder="Search stats..."
-                                class="filter-subsearch"
-                            />
-                            <div
-                                id="filter-stat"
-                                class="checkbox-list scrollable"
-                            ></div>
-                        </div>
-                    </div>
-
-                    <div
-                        class="filter-group collapsible collapsed"
-                        id="group-rarity"
-                    >
-                        <button
-                            class="filter-group-header"
-                            aria-expanded="false"
-                        >
-                            <span>Advanced Rarity</span>
-                            <span
-                                class="filter-active-count"
-                                id="count-rarity"
-                                hidden
-                            ></span>
-                            <span class="toggle-arrow">▾</span>
-                        </button>
-                        <div class="filter-group-body">
-                            <div id="filter-rarity" class="checkbox-list"></div>
-                        </div>
-                    </div>
-
-                    <div
-                        class="filter-group collapsible collapsed"
-                        id="group-drop"
-                    >
-                        <button
-                            class="filter-group-header"
-                            aria-expanded="false"
-                        >
-                            <span>Drop Source</span>
-                            <span class="toggle-arrow">▾</span>
-                        </button>
-                        <div class="filter-group-body">
-                            <input
-                                type="search"
-                                id="drop-search"
-                                placeholder="Mission, enemy, relic..."
-                            />
-                        </div>
-                    </div>
-
-                    <button id="clear-filters" class="btn-clear">
-                        Clear All Filters
+                        Filters
                     </button>
-                </div>
+                </aside>
 
-                <button
-                    class="sidebar-toggle"
-                    id="sidebar-toggle"
-                    aria-label="Toggle filters"
-                >
-                    Filters
-                </button>
-            </aside>
-
-            <section class="content">
-                <div class="toolbar">
-                    <span id="result-count"></span>
-                    <div id="active-chips" class="active-chips"></div>
-                    <div class="toolbar-controls">
-                        <div class="grid-density-toggle">
-                            <button
-                                class="density-btn"
-                                data-density="compact"
-                                title="Compact view"
-                            >
-                                ⊞
-                            </button>
-                            <button
-                                class="density-btn active"
-                                data-density="normal"
-                                title="Normal view"
-                            >
-                                ⊟
-                            </button>
-                            <button
-                                class="density-btn"
-                                data-density="spacious"
-                                title="Spacious view"
-                            >
-                                ⊡
-                            </button>
+                <section class="content">
+                    <div class="toolbar">
+                        <span id="result-count"></span>
+                        <div id="active-chips" class="active-chips"></div>
+                        <div class="toolbar-controls">
+                            <div class="grid-density-toggle">
+                                <button
+                                    class="density-btn"
+                                    data-density="compact"
+                                    title="Compact view"
+                                >
+                                    ⊞
+                                </button>
+                                <button
+                                    class="density-btn active"
+                                    data-density="normal"
+                                    title="Normal view"
+                                >
+                                    ⊟
+                                </button>
+                                <button
+                                    class="density-btn"
+                                    data-density="spacious"
+                                    title="Spacious view"
+                                >
+                                    ⊡
+                                </button>
+                            </div>
+                            <select id="sort-select">
+                                <option value="name-asc">Name A-Z</option>
+                                <option value="name-desc">Name Z-A</option>
+                                <option value="drain-asc">Drain Low-High</option>
+                                <option value="drain-desc">Drain High-Low</option>
+                            </select>
                         </div>
-                        <select id="sort-select">
-                            <option value="name-asc">Name A-Z</option>
-                            <option value="name-desc">Name Z-A</option>
-                            <option value="drain-asc">Drain Low-High</option>
-                            <option value="drain-desc">Drain High-Low</option>
-                        </select>
                     </div>
-                </div>
-                <div id="mod-grid" class="mod-grid"></div>
-                <div id="loading" class="loading">Loading mod data...</div>
-                <div id="no-results" class="no-results" hidden>
-                    No mods match your filters.
-                </div>
-                <button id="load-more" class="btn-load-more" hidden>
-                    Load More
-                </button>
-            </section>
+                    <div id="mod-grid" class="mod-grid"></div>
+                    <div id="loading" class="loading">Loading mod data...</div>
+                    <div id="no-results" class="no-results" hidden>
+                        No mods match your filters.
+                    </div>
+                    <button id="load-more" class="btn-load-more" hidden>
+                        Load More
+                    </button>
+                </section>
+            </div>
+
+            <div id="tab-warframes" class="tab-pane" hidden></div>
+            <div id="tab-weapons" class="tab-pane" hidden></div>
+            <div id="tab-arcanes" class="tab-pane" hidden></div>
+            <div id="tab-relics" class="tab-pane" hidden></div>
         </main>
 
         <div id="modal-overlay" class="modal-overlay" hidden>
@@ -263,10 +277,25 @@
                 <button class="modal-close" id="modal-close" aria-label="Close">
                     &times;
                 </button>
+                <div class="modal-breadcrumb" id="modal-breadcrumb" hidden></div>
                 <div id="modal-content"></div>
             </div>
         </div>
 
+        <nav class="bottom-nav" id="bottom-nav">
+            <button class="bottom-nav-btn active" data-tab="mods"><span class="bottom-nav-icon">⚙</span><span>Mods</span></button>
+            <button class="bottom-nav-btn" data-tab="warframes"><span class="bottom-nav-icon">👤</span><span>Warframes</span></button>
+            <button class="bottom-nav-btn" data-tab="weapons"><span class="bottom-nav-icon">⚔</span><span>Weapons</span></button>
+            <button class="bottom-nav-btn" data-tab="arcanes"><span class="bottom-nav-icon">✨</span><span>Arcanes</span></button>
+            <button class="bottom-nav-btn" data-tab="relics"><span class="bottom-nav-icon">◈</span><span>Relics</span></button>
+        </nav>
+        <div id="hover-tooltip" class="hover-tooltip" hidden aria-hidden="true"></div>
+
+        <script src="js/components.js"></script>
         <script src="js/app.js"></script>
+        <script src="js/tabs/weapons.js"></script>
+        <script src="js/tabs/warframes.js"></script>
+        <script src="js/tabs/arcanes.js"></script>
+        <script src="js/tabs/relics.js"></script>
     </body>
 </html>

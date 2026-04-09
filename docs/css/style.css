@@ -917,3 +917,350 @@ a.badge:hover {
         grid-template-columns: 1fr;
     }
 }
+
+/* ── Tab Navigation ────────────────────────────── */
+.tab-nav {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.tab-btn {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-family: inherit;
+    padding: 0.4rem 0.75rem;
+    transition: all 0.15s;
+}
+
+.tab-btn:hover {
+    color: var(--text);
+}
+
+.tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+}
+
+/* ── Tab Panes ─────────────────────────────────── */
+.tab-pane {
+    display: flex;
+    width: 100%;
+    min-height: calc(100vh - 50px);
+}
+
+.tab-pane[hidden] {
+    display: none;
+}
+
+.tab-pane.active {
+    display: flex;
+}
+
+/* ── Bottom Nav (mobile) ───────────────────────── */
+@media (max-width: 768px) {
+    body { padding-bottom: 56px; }
+
+    .bottom-nav {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 56px;
+        background: var(--bg-sidebar);
+        border-top: 1px solid var(--border);
+        display: flex;
+        z-index: 100;
+    }
+
+    .bottom-nav-btn {
+        flex: 1;
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.15rem;
+        font-size: 0.65rem;
+        font-family: inherit;
+        padding: 0;
+        transition: color 0.15s;
+    }
+
+    .bottom-nav-btn.active {
+        color: var(--accent);
+    }
+
+    .bottom-nav-icon {
+        font-size: 1.1rem;
+        line-height: 1;
+    }
+
+    .sidebar-toggle {
+        bottom: 4.5rem;
+    }
+}
+
+@media (min-width: 769px) {
+    .bottom-nav {
+        display: none;
+    }
+}
+
+/* ── Modal Breadcrumb ──────────────────────────── */
+.modal-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding-bottom: 0.75rem;
+    margin-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.85rem;
+}
+
+.modal-breadcrumb[hidden] { display: none; }
+
+.breadcrumb-back, .breadcrumb-crumb {
+    background: none;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    padding: 0;
+    font-size: inherit;
+    font-family: inherit;
+}
+
+.breadcrumb-sep { color: var(--text-muted); }
+.breadcrumb-current { color: var(--text); }
+
+/* ── Drop Table ────────────────────────────────── */
+.drop-table { display: flex; flex-direction: column; gap: 0.5rem; }
+
+.drop-group-header {
+    display: flex; align-items: center; gap: 0.4rem; width: 100%;
+    background: none; border: none; border-bottom: 1px solid var(--border);
+    color: var(--accent); font-size: 0.75rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.5px;
+    cursor: pointer; padding: 0.3rem 0; text-align: left; font-family: inherit;
+}
+
+.drop-group-count {
+    background: var(--accent); color: var(--bg); border-radius: 10px;
+    font-size: 0.65rem; padding: 0.05rem 0.35rem;
+}
+
+.drop-group-body.collapsed { display: none; }
+
+.drop-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 0.4rem 0.6rem;
+    align-items: center;
+    padding: 0.25rem 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.8rem;
+}
+
+.drop-bar-track {
+    grid-column: 1 / -1;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+}
+
+.drop-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; }
+
+.drop-pct { color: var(--accent); font-size: 0.8rem; white-space: nowrap; }
+
+/* ── Cross Links ───────────────────────────────── */
+.cross-link {
+    background: none;
+    border: 1px solid var(--accent-dim);
+    border-radius: 50px;
+    color: var(--accent);
+    cursor: pointer;
+    font-size: 0.8rem;
+    padding: 0.15rem 0.5rem;
+    transition: all 0.15s;
+    font-family: inherit;
+}
+
+.cross-link:hover {
+    background: rgba(196, 162, 78, 0.15);
+    border-color: var(--accent);
+}
+
+.cross-link-filter {
+    border-color: var(--border);
+    color: var(--text-muted);
+}
+
+.cross-link-filter:hover {
+    border-color: var(--accent-dim);
+    color: var(--text);
+}
+
+/* ── Hover Tooltip ─────────────────────────────── */
+@media (hover: hover) {
+    .hover-tooltip {
+        position: fixed;
+        z-index: 300;
+        width: 280px;
+        background: var(--bg-card);
+        border: 1px solid var(--accent-dim);
+        border-radius: var(--radius);
+        padding: 0.75rem;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+        pointer-events: none;
+    }
+
+    .hover-tooltip[hidden] { display: none; }
+
+    .tooltip-header {
+        display: flex; gap: 0.6rem; align-items: flex-start; margin-bottom: 0.5rem;
+    }
+
+    .tooltip-img {
+        width: 48px; height: 48px; object-fit: contain;
+        border-radius: 4px; background: var(--bg);
+    }
+
+    .tooltip-name { font-size: 0.9rem; font-weight: 600; color: var(--accent); }
+    .tooltip-sub { font-size: 0.75rem; color: var(--text-muted); }
+
+    .tooltip-stats {
+        display: flex; gap: 0.75rem; flex-wrap: wrap;
+        font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.4rem;
+    }
+
+    .tooltip-stats strong { color: var(--text); }
+
+    .tooltip-build {
+        font-size: 0.75rem; color: var(--text-muted);
+        border-top: 1px solid var(--border);
+        padding-top: 0.4rem; margin-top: 0.4rem;
+    }
+}
+
+/* ── Abilities Grid ────────────────────────────── */
+.abilities-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+.ability-card {
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.6rem 0.75rem;
+}
+
+.ability-name {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 0.25rem;
+}
+
+.ability-desc {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
+@media (max-width: 768px) {
+    .abilities-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Relic Tier Badges ─────────────────────────── */
+.relic-tier-badge {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    flex-shrink: 0;
+    color: var(--bg);
+}
+
+.tier-lith { background: #a0845c; }
+.tier-meso { background: #a8adb8; }
+.tier-neo { background: var(--accent); }
+.tier-axi { background: #e0e8f0; }
+
+/* ── Related Mods ──────────────────────────────── */
+.related-mods-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.related-mod-card {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.35rem 0.6rem;
+    cursor: pointer;
+    font-size: 0.8rem;
+    color: var(--text);
+    transition: border-color 0.15s;
+    font-family: inherit;
+}
+
+.related-mod-card:hover { border-color: var(--accent); }
+.related-mod-card.rarity-rare { border-left: 2px solid var(--rare); }
+.related-mod-card.rarity-legendary { border-left: 2px solid var(--legendary); }
+.related-mod-img { width: 28px; height: 28px; object-fit: contain; }
+.related-mod-name { font-weight: 500; }
+
+.btn-browse-mods {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.8rem;
+    padding: 0.4rem 0.75rem;
+    transition: all 0.15s;
+    width: 100%;
+    text-align: left;
+    font-family: inherit;
+}
+
+.btn-browse-mods:hover { border-color: var(--accent-dim); color: var(--text); }
+
+/* ── Generic tab content layout ─────────────────── */
+.tab-sidebar {
+    width: var(--sidebar-w);
+    flex-shrink: 0;
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border);
+    padding: 1rem;
+    position: sticky;
+    top: 50px;
+    height: calc(100vh - 50px);
+    overflow-y: auto;
+}
+
+.tab-content-area {
+    flex: 1;
+    padding: 1rem 1.25rem;
+    min-width: 0;
+}
+
+.text-muted { color: var(--text-muted); font-size: 0.85rem; }
