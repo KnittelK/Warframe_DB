@@ -659,10 +659,16 @@
   function openModal(mod) {
     const rarityClass = (mod.rarity || "common").toLowerCase();
     const wikiUrl = `https://warframe.fandom.com/wiki/${encodeURIComponent(cleanText(mod.name).replace(/ /g, "_"))}`;
+    const modImage = mod.wikiaThumbnail || "";
 
     let html = `
-      <h2>${esc(mod.name)}</h2>
-      <p class="modal-type">${esc(mod.type)}${mod.compatName ? " - " + esc(formatCompat(mod.compatName)) : ""}</p>
+      <div class="modal-header">
+        ${modImage ? `<img src="${escapeAttr(modImage)}" alt="${escapeAttr(cleanText(mod.name))}" class="modal-mod-image">` : ""}
+        <div class="modal-header-text">
+          <h2>${esc(mod.name)}</h2>
+          <p class="modal-type">${esc(mod.type)}${mod.compatName ? " - " + esc(formatCompat(mod.compatName)) : ""}</p>
+        </div>
+      </div>
     `;
 
     if (mod.description) {
