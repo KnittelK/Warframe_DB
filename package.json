@@ -1,0 +1,12 @@
+{
+  "name": "warframe-mod-browser",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Static Warframe mod browser with data from DE Public Export and warframestat.us",
+  "scripts": {
+    "update-data": "node scripts/merge-mods.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
