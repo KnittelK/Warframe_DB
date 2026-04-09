@@ -232,7 +232,15 @@
     });
  
     loadMore.addEventListener("click", renderMore);
- 
+
+    document.querySelectorAll(".filter-group-header").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const group = btn.closest(".filter-group");
+        const isCollapsed = group.classList.toggle("collapsed");
+        btn.setAttribute("aria-expanded", String(!isCollapsed));
+      });
+    });
+
     sidebarToggle.addEventListener("click", () => {
       sidebar.classList.toggle("open");
     });
@@ -269,9 +277,10 @@
     filtered = allMods.filter((mod) => {
       if (filters.search) {
         const q = filters.search;
-        if (!mod.name.toLowerCase().includes(q) && !(mod.description || "").toLowerCase().includes(q)) {
-          return false;
-        }
+        const inName = mod.name.toLowerCase().includes(q);
+        const inDesc = (mod.description || "").toLowerCase().includes(q);
+        const inStats = (mod.statTypes || []).some((s) => s.toLowerCase().includes(q));
+        if (!inName && !inDesc && !inStats) return false;
       }
  
       if (filters.types.size > 0 && !filters.types.has(mod.type)) {
@@ -309,7 +318,63 @@
     sortMods();
     displayed = 0;
     grid.innerHTML = "";
+    updateFilterGroupCounts();
+    renderActiveChips();
     renderMore();
+  }
+
+  function updateFilterGroupCounts() {
+    const entries = [
+      { id: "count-type", set: filters.types },
+      { id: "count-compat", set: filters.compats },
+      { id: "count-stat", set: filters.stats },
+      { id: "count-rarity", set: filters.rarities },
+    ];
+    for (const { id, set } of entries) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      el.textContent = set.size;
+      el.hidden = set.size === 0;
+    }
+  }
+
+  function renderActiveChips() {
+    const container = document.getElementById("active-chips");
+    if (!container) return;
+    container.innerHTML = "";
+
+    const addChip = (label, onRemove) => {
+      const chip = document.createElement("span");
+      chip.className = "filter-chip";
+      const text = document.createElement("span");
+      text.textContent = label;
+      const btn = document.createElement("button");
+      btn.className = "chip-remove";
+      btn.setAttribute("aria-label", "Remove filter");
+      btn.textContent = "×";
+      btn.addEventListener("click", onRemove);
+      chip.append(text, btn);
+      container.appendChild(chip);
+    };
+
+    const uncheckIn = (containerId, value) => {
+      document.querySelectorAll(`#${containerId} input[type=checkbox]`).forEach((cb) => {
+        if (cb.value === value) cb.checked = false;
+      });
+    };
+
+    for (const v of filters.types) {
+      addChip(v, () => { filters.types.delete(v); uncheckIn("filter-type", v); applyFilters(); });
+    }
+    for (const v of filters.compats) {
+      addChip(v, () => { filters.compats.delete(v); uncheckIn("filter-compat", v); applyFilters(); });
+    }
+    for (const v of filters.stats) {
+      addChip(v, () => { filters.stats.delete(v); uncheckIn("filter-stat", v); applyFilters(); });
+    }
+    for (const v of filters.rarities) {
+      addChip(v, () => { filters.rarities.delete(v); uncheckIn("filter-rarity", v); applyFilters(); });
+    }
   }
  
   function sortMods() {
@@ -341,7 +406,7 @@
  
   function createCard(mod) {
     const card = document.createElement("article");
-    card.className = "mod-card";
+    card.className = `mod-card rarity-${(mod.rarity || "common").toLowerCase()}`;
     card.addEventListener("click", () => openModal(mod));
  
     const rarityClass = (mod.rarity || "common").toLowerCase();
