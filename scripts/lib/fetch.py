@@ -6,10 +6,17 @@ import urllib.error
 import urllib.request
 
 
+_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (compatible; WarframeDB-DataPipeline/1.0; +https://github.com/KnittelK/Warframe_DB)",
+    "Accept": "application/json",
+}
+
+
 def _fetch_with_retry(url: str, label: str, retries: int = 3, backoff: float = 1.0) -> bytes:
     for attempt in range(retries + 1):
         try:
-            with urllib.request.urlopen(url) as response:
+            req = urllib.request.Request(url, headers=_HEADERS)
+            with urllib.request.urlopen(req) as response:
                 return response.read()
         except urllib.error.HTTPError:
             raise  # Don't retry HTTP errors (4xx/5xx)
