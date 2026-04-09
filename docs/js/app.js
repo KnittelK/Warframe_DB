@@ -658,6 +658,8 @@
   // ── Modal ──────────────────────────────────────
   function openModal(mod) {
     const rarityClass = (mod.rarity || "common").toLowerCase();
+    const wikiUrl = `https://warframe.fandom.com/wiki/${encodeURIComponent(cleanText(mod.name).replace(/ /g, "_"))}`;
+
     let html = `
       <h2>${esc(mod.name)}</h2>
       <p class="modal-type">${esc(mod.type)}${mod.compatName ? " - " + esc(formatCompat(mod.compatName)) : ""}</p>
@@ -674,6 +676,7 @@
       <span class="badge badge-drain">${mod.baseDrain} drain</span>
       <span class="badge badge-drain">Max rank: ${mod.fusionLimit}</span>
       ${mod.tradable ? '<span class="badge badge-polarity">Tradable</span>' : ""}
+      <a href="${wikiUrl}" target="_blank" rel="noopener noreferrer" class="badge badge-polarity" style="text-decoration:none;">📖 Wiki</a>
     </div>`;
 
     // Stats table
@@ -713,9 +716,17 @@
   }
 
   // ── Helpers ────────────────────────────────────
+  function cleanText(s) {
+    if (!s) return s;
+    // Strip out color tags like <DT_PUNCTURE_COLOR> and other markup tags
+    return s.replace(/<[^>]+>/g, "");
+  }
+
   function esc(s) {
+    if (!s) return "";
+    const cleaned = cleanText(s);
     const d = document.createElement("div");
-    d.textContent = s;
+    d.textContent = cleaned;
     return d.innerHTML;
   }
 

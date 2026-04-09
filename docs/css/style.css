@@ -326,6 +326,14 @@ main {
     color: var(--text);
     cursor: pointer;
     padding: 0.15rem 0;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.checkbox-list label > span:first-of-type {
+    flex: 1;
+    min-width: 0;
+    word-break: break-word;
 }
 
 .checkbox-list label:hover {
@@ -628,6 +636,17 @@ main {
 .badge-drain {
     background: rgba(136, 144, 160, 0.12);
     color: var(--text-muted);
+}
+
+a.badge {
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+a.badge:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(196, 162, 78, 0.3);
+    background: rgba(196, 162, 78, 0.25);
 }
 
 .mod-card-stats {
