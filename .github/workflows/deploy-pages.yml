@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - "docs/**"
+  workflow_run:
+    workflows: ["Update Mod Data"]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
