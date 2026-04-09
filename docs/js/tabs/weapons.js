@@ -2,6 +2,8 @@
 (function() {
   function renderWeaponsGrid(weapons, containerEl, sidebarEl) {
     // Build sidebar
+    const weaponTypes = [...new Set(weapons.map(w => w.type).filter(Boolean))].sort();
+
     sidebarEl.innerHTML = `
       <div class="filter-group">
         <label class="filter-label">Search</label>
@@ -13,6 +15,18 @@
           ${['Primary','Secondary','Melee'].map(c =>
             `<label><input type="checkbox" class="weapon-cat-cb" value="${c}"> <span>${c}</span></label>`
           ).join('')}
+        </div>
+      </div>
+      <div class="filter-group collapsible collapsed" id="weapon-group-type">
+        <button class="filter-group-header" aria-expanded="false">
+          <span>Weapon Type</span><span class="toggle-arrow">▾</span>
+        </button>
+        <div class="filter-group-body">
+          <div class="checkbox-list scrollable">
+            ${weaponTypes.map(t =>
+              `<label><input type="checkbox" class="weapon-type-cb" value="${escAttrComp(t)}"> <span>${escComp(t)}</span></label>`
+            ).join('')}
+          </div>
         </div>
       </div>
       <div class="filter-group">
@@ -52,6 +66,7 @@
     let sortKey = 'name-asc';
     let searchVal = '';
     let selCats = new Set();
+    let selTypes = new Set();
     let selMRs = new Set();
     let tradableOnly = false;
 
@@ -59,6 +74,7 @@
       return weapons.filter(w => {
         if (searchVal && !w.name.toLowerCase().includes(searchVal)) return false;
         if (selCats.size && !selCats.has(w.category)) return false;
+        if (selTypes.size && !selTypes.has(w.type)) return false;
         if (selMRs.size && !selMRs.has(String(w.masteryReq || 0))) return false;
         if (tradableOnly && !w.tradable) return false;
         return true;
@@ -120,6 +136,17 @@
         render();
       });
     });
+    sidebarEl.querySelector('#weapon-group-type .filter-group-header').addEventListener('click', function() {
+      const group = this.closest('.filter-group');
+      const isCollapsed = group.classList.toggle('collapsed');
+      this.setAttribute('aria-expanded', String(!isCollapsed));
+    });
+    sidebarEl.querySelectorAll('.weapon-type-cb').forEach(cb => {
+      cb.addEventListener('change', () => {
+        if (cb.checked) selTypes.add(cb.value); else selTypes.delete(cb.value);
+        render();
+      });
+    });
     sidebarEl.querySelectorAll('.weapon-mr-cb').forEach(cb => {
       cb.addEventListener('change', () => {
         if (cb.checked) selMRs.add(cb.value); else selMRs.delete(cb.value);
@@ -130,7 +157,7 @@
       tradableOnly = e.target.checked; render();
     });
     sidebarEl.querySelector('#weapon-clear').addEventListener('click', () => {
-      searchVal = ''; selCats.clear(); selMRs.clear(); tradableOnly = false;
+      searchVal = ''; selCats.clear(); selTypes.clear(); selMRs.clear(); tradableOnly = false;
       sidebarEl.querySelectorAll('input').forEach(i => { i.value = ''; i.checked = false; });
       render();
     });

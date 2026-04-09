@@ -108,9 +108,9 @@
   }
 
   function applyTabFilter(name, filter) {
-    // Each tab's renderGrid handles its own filtering via sidebar
-    const searchEl = document.getElementById(name.slice(0,-1) + '-search') ||
-                     document.getElementById(name + '-search');
+    // Tab search input IDs: weapon-search, wf-search, arcane-search, relic-search
+    const idMap = { weapons: 'weapon-search', warframes: 'wf-search', arcanes: 'arcane-search', relics: 'relic-search' };
+    const searchEl = document.getElementById(idMap[name] || (name + '-search'));
     if (searchEl && filter.value) {
       searchEl.value = filter.value;
       searchEl.dispatchEvent(new Event('input'));
@@ -845,7 +845,7 @@
       return esc(formatCompat(compatName));
     }
 
-    // Try to resolve from cached data
+    // Try to resolve from cached data (synchronous fast path)
     const weapons = getTabData('weapons') || [];
     const warframes = getTabData('warframes') || [];
 
@@ -863,11 +863,38 @@
         data-nav-category="warframe">${esc(formatCompat(compatName))} ↗</button>`;
     }
 
-    // Generic category filter chip
-    return `<button class="cross-link cross-link-filter"
+    // Data not yet cached — emit a pending placeholder and resolve async
+    // Use a unique ID so we can patch it after load
+    const placeholderId = 'compat-chip-' + Math.random().toString(36).slice(2);
+    _resolveCompatChipAsync(compatName, upper, placeholderId);
+    // Return generic chip for now; will be upgraded if resolved
+    return `<span id="${placeholderId}"><button class="cross-link cross-link-filter"
       data-filter-tab="weapons"
       data-filter-field="type"
-      data-filter-value="${escapeAttr(compatName)}">${esc(formatCompat(compatName))} →</button>`;
+      data-filter-value="${escapeAttr(compatName)}">${esc(formatCompat(compatName))} →</button></span>`;
+  }
+
+  async function _resolveCompatChipAsync(compatName, upper, placeholderId) {
+    try {
+      const [weapons, warframes] = await Promise.all([
+        loadData('weapons.json').catch(() => []),
+        loadData('warframes.json').catch(() => []),
+      ]);
+
+      const weapon = weapons.find(w => w.name.toUpperCase() === upper);
+      const warframe = !weapon && warframes.find(w => w.name.toUpperCase() === upper);
+      const found = weapon || warframe;
+      const category = weapon ? 'weapon' : 'warframe';
+
+      if (!found) return; // no match — leave generic chip as-is
+
+      const el = document.getElementById(placeholderId);
+      if (!el) return; // modal already closed
+
+      el.outerHTML = `<button class="cross-link cross-link-item"
+        data-nav-item="${escapeAttr(found.name)}"
+        data-nav-category="${category}">${esc(formatCompat(compatName))} ↗</button>`;
+    } catch (_) { /* ignore */ }
   }
 
   // ── Helpers ────────────────────────────────────
