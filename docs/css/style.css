@@ -106,6 +106,10 @@ main {
   margin-bottom: 0.4rem;
 }
  
+.search-wrapper {
+  position: relative;
+}
+
 .filter-group input[type="search"] {
   width: 100%;
   background: var(--bg-input);
@@ -117,11 +121,49 @@ main {
   outline: none;
   transition: border-color 0.15s;
 }
- 
+
 .filter-group input[type="search"]:focus {
   border-color: var(--accent);
 }
- 
+
+.autocomplete-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+  list-style: none;
+  z-index: 150;
+  margin: 0;
+  padding: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.autocomplete-list[hidden] {
+  display: none;
+}
+
+.autocomplete-list li {
+  padding: 0.4rem 0.6rem;
+  font-size: 0.85rem;
+  color: var(--text);
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+}
+
+.autocomplete-list li:last-child {
+  border-bottom: none;
+}
+
+.autocomplete-list li:hover,
+.autocomplete-list li.active {
+  background: var(--bg-input);
+  color: var(--accent);
+}
+
 .checkbox-list {
   display: flex;
   flex-direction: column;

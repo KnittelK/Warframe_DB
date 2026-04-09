@@ -7,6 +7,8 @@
   let filtered = [];
   let displayed = 0;
   const PAGE_SIZE = 60;
+  let autocompleteCandidates = [];
+  let autocompleteActiveIndex = -1;
  
   // Active filters
   const filters = {
@@ -37,6 +39,7 @@
   const modalOverlay = $("#modal-overlay");
   const modalContent = $("#modal-content");
   const modalClose = $("#modal-close");
+  const autocompleteList = $("#autocomplete-list");
  
   // ── Init ───────────────────────────────────────
   async function init() {
@@ -70,10 +73,63 @@
     }
  
     buildFilterOptions();
+    buildAutocompleteList();
     bindEvents();
     applyFilters();
   }
  
+  // ── Autocomplete ───────────────────────────────
+  function buildAutocompleteList() {
+    const names = allMods.map((m) => m.name);
+    const stats = [...new Set(allMods.flatMap((m) => m.statTypes || []))];
+    autocompleteCandidates = [...new Set([...names, ...stats])].sort((a, b) =>
+      a.localeCompare(b)
+    );
+  }
+
+  function showAutocomplete(query) {
+    if (!query || query.length < 2) { hideAutocomplete(); return; }
+    const q = query.toLowerCase();
+    const matches = autocompleteCandidates
+      .filter((c) => c.toLowerCase().includes(q))
+      .slice(0, 8);
+    if (matches.length === 0) { hideAutocomplete(); return; }
+
+    autocompleteActiveIndex = -1;
+    autocompleteList.innerHTML = "";
+    for (const match of matches) {
+      const li = document.createElement("li");
+      li.textContent = match;
+      li.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        selectAutocomplete(match);
+      });
+      autocompleteList.appendChild(li);
+    }
+    autocompleteList.hidden = false;
+  }
+
+  function hideAutocomplete() {
+    autocompleteList.hidden = true;
+    autocompleteList.innerHTML = "";
+    autocompleteActiveIndex = -1;
+  }
+
+  function selectAutocomplete(value) {
+    searchInput.value = value;
+    filters.search = value.toLowerCase();
+    applyFilters();
+    hideAutocomplete();
+  }
+
+  function moveAutocomplete(dir) {
+    const items = autocompleteList.querySelectorAll("li");
+    if (!items.length) return;
+    items[autocompleteActiveIndex]?.classList.remove("active");
+    autocompleteActiveIndex = Math.max(0, Math.min(items.length - 1, autocompleteActiveIndex + dir));
+    items[autocompleteActiveIndex].classList.add("active");
+  }
+
   // ── Build filter checkboxes from data ──────────
   function buildFilterOptions() {
     const typeCounts = countBy(allMods, (m) => m.type);
@@ -147,9 +203,23 @@
   // ── Events ─────────────────────────────────────
   function bindEvents() {
     searchInput.addEventListener("input", debounce(() => {
-      filters.search = searchInput.value.trim().toLowerCase();
+      const val = searchInput.value.trim();
+      filters.search = val.toLowerCase();
       applyFilters();
+      showAutocomplete(val);
     }, 200));
+
+    searchInput.addEventListener("keydown", (e) => {
+      if (autocompleteList.hidden) return;
+      if (e.key === "ArrowDown") { e.preventDefault(); moveAutocomplete(1); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); moveAutocomplete(-1); }
+      else if (e.key === "Enter") {
+        const active = autocompleteList.querySelector("li.active");
+        if (active) { e.preventDefault(); selectAutocomplete(active.textContent); }
+      } else if (e.key === "Escape") { hideAutocomplete(); }
+    });
+
+    searchInput.addEventListener("blur", () => hideAutocomplete());
  
     dropSearchInput.addEventListener("input", debounce(() => {
       filters.dropSearch = dropSearchInput.value.trim().toLowerCase();
@@ -176,6 +246,7 @@
       filters.rarities.clear();
       searchInput.value = "";
       dropSearchInput.value = "";
+      hideAutocomplete();
       sidebar.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
         cb.checked = false;
       });
@@ -196,8 +267,11 @@
   // ── Filtering ──────────────────────────────────
   function applyFilters() {
     filtered = allMods.filter((mod) => {
-      if (filters.search && !mod.name.toLowerCase().includes(filters.search)) {
-        return false;
+      if (filters.search) {
+        const q = filters.search;
+        if (!mod.name.toLowerCase().includes(q) && !(mod.description || "").toLowerCase().includes(q)) {
+          return false;
+        }
       }
  
       if (filters.types.size > 0 && !filters.types.has(mod.type)) {
