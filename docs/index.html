@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Warframe Mod Browser</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <h1>Warframe Mod Browser</h1>
+      <span id="meta-info" class="meta-info"></span>
+    </div>
+  </header>
+ 
+  <main>
+    <aside class="sidebar" id="sidebar">
+      <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle filters">Filters</button>
+ 
+      <div class="sidebar-body">
+        <div class="filter-group">
+          <label for="search">Search</label>
+          <input type="search" id="search" placeholder="Mod name...">
+        </div>
+ 
+        <div class="filter-group">
+          <label>Mod Type</label>
+          <div id="filter-type" class="checkbox-list"></div>
+        </div>
+ 
+        <div class="filter-group">
+          <label>Weapon Category</label>
+          <div id="filter-compat" class="checkbox-list"></div>
+        </div>
+ 
+        <div class="filter-group">
+          <label>Stat Type</label>
+          <div id="filter-stat" class="checkbox-list scrollable"></div>
+        </div>
+ 
+        <div class="filter-group">
+          <label>Rarity</label>
+          <div id="filter-rarity" class="checkbox-list"></div>
+        </div>
+ 
+        <div class="filter-group">
+          <label for="drop-search">Drop Source</label>
+          <input type="search" id="drop-search" placeholder="Mission, enemy, relic...">
+        </div>
+ 
+        <button id="clear-filters" class="btn-clear">Clear All Filters</button>
+      </div>
+    </aside>
+ 
+    <section class="content">
+      <div class="toolbar">
+        <span id="result-count"></span>
+        <select id="sort-select">
+          <option value="name-asc">Name A-Z</option>
+          <option value="name-desc">Name Z-A</option>
+          <option value="drain-asc">Drain Low-High</option>
+          <option value="drain-desc">Drain High-Low</option>
+        </select>
+      </div>
+      <div id="mod-grid" class="mod-grid"></div>
+      <div id="loading" class="loading">Loading mod data...</div>
+      <div id="no-results" class="no-results" hidden>No mods match your filters.</div>
+      <button id="load-more" class="btn-load-more" hidden>Load More</button>
+    </section>
+  </main>
+ 
+  <div id="modal-overlay" class="modal-overlay" hidden>
+    <div class="modal" role="dialog" aria-modal="true">
+      <button class="modal-close" id="modal-close" aria-label="Close">&times;</button>
+      <div id="modal-content"></div>
+    </div>
+  </div>
+ 
+  <script src="js/app.js"></script>
+</body>
+</html>
