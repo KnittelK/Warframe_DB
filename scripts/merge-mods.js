@@ -6,16 +6,16 @@
  *
  * Outputs site/data/mods.json
  */
- 
+
 const fs = require("fs");
 const path = require("path");
- 
+
 const DE_EXPORT_URL =
   "https://content.warframe.com/PublicExport/Manifest/ExportUpgrades.json";
 const WARFRAMESTAT_URL = "https://api.warframestat.us/mods";
- 
-const OUT_PATH = path.join(__dirname, "..", "site", "data", "mods.json");
- 
+
+const OUT_PATH = path.join(__dirname, "..", "docs", "data", "mods.json");
+
 async function fetchJSON(url, label) {
   console.log(`Fetching ${label}...`);
   const res = await fetch(url);
@@ -25,13 +25,13 @@ async function fetchJSON(url, label) {
   if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
   return JSON.parse(text);
 }
- 
+
 function normalizeType(raw) {
   if (!raw) return "Unknown";
   const s = raw.replace(/ Mod$/i, "").trim();
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
- 
+
 function extractStatTypes(levelStats) {
   const types = new Set();
   if (!Array.isArray(levelStats)) return [];
@@ -41,24 +41,27 @@ function extractStatTypes(levelStats) {
     for (const stat of entries) {
       // Match patterns like "+15% Damage" or "-10% Recoil" or "+1.2 Energy/sec"
       const m = String(stat).match(
-        /^[+\-]?[\d.]+[%]?\s+(.+?)(?:\s+(?:for|on|while|per|at)\b.*)?$/i
+        /^[+\-]?[\d.]+[%]?\s+(.+?)(?:\s+(?:for|on|while|per|at)\b.*)?$/i,
       );
       if (m) types.add(m[1].trim());
     }
   }
   return [...types];
 }
- 
+
 async function main() {
   // Fetch both sources concurrently
   const [deRaw, wfMods] = await Promise.all([
     fetchJSON(DE_EXPORT_URL, "DE Public Export").catch((err) => {
-      console.warn("DE export unavailable, continuing with warframestat only:", err.message);
+      console.warn(
+        "DE export unavailable, continuing with warframestat only:",
+        err.message,
+      );
       return null;
     }),
     fetchJSON(WARFRAMESTAT_URL, "warframestat.us"),
   ]);
- 
+
   // Index DE data by uniqueName
   const deByName = new Map();
   if (deRaw) {
@@ -69,20 +72,20 @@ async function main() {
     }
     console.log(`DE export: ${deByName.size} upgrades indexed`);
   }
- 
+
   console.log(`warframestat.us: ${wfMods.length} mods fetched`);
- 
+
   const merged = [];
- 
+
   for (const wf of wfMods) {
     // Skip mods with no name or marked as codex-secret
     if (!wf.name) continue;
- 
+
     const de = deByName.get(wf.uniqueName) || {};
- 
+
     // Prefer DE stats when available (more up-to-date), fall back to warframestat
     const levelStats = de.levelStats || wf.levelStats || [];
- 
+
     const mod = {
       name: wf.name,
       uniqueName: wf.uniqueName || "",
@@ -104,19 +107,19 @@ async function main() {
       wikiaThumbnail: wf.wikiaThumbnail || "",
       tradable: wf.tradable ?? false,
     };
- 
+
     merged.push(mod);
   }
- 
+
   // Sort alphabetically
   merged.sort((a, b) => a.name.localeCompare(b.name));
- 
+
   // Write output
   fs.mkdirSync(path.dirname(OUT_PATH), { recursive: true });
   fs.writeFileSync(OUT_PATH, JSON.stringify(merged));
- 
+
   console.log(`Wrote ${merged.length} mods to ${OUT_PATH}`);
- 
+
   // Also write a small metadata file
   const meta = {
     lastUpdated: new Date().toISOString(),
@@ -125,11 +128,11 @@ async function main() {
   };
   fs.writeFileSync(
     path.join(path.dirname(OUT_PATH), "meta.json"),
-    JSON.stringify(meta, null, 2)
+    JSON.stringify(meta, null, 2),
   );
   console.log("Wrote meta.json");
 }
- 
+
 main().catch((err) => {
   console.error("Fatal:", err);
   process.exit(1);
