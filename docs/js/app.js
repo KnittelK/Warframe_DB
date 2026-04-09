@@ -1,6 +1,210 @@
-/* Warframe Mod Browser — Client-side app */
+/* Warframe DB — Client-side app */
 (function () {
   "use strict";
+
+  // ── Shared data cache ──────────────────────────
+  const dataCache = {};
+
+  async function loadData(filename) {
+    if (!dataCache[filename]) {
+      const res = await fetch(`data/${filename}`);
+      if (!res.ok) throw new Error(`Failed to load ${filename}`);
+      dataCache[filename] = await res.json();
+    }
+    return dataCache[filename];
+  }
+
+  function getTabData(name) {
+    if (name === 'mods') return dataCache['mods.json'] || null;
+    return dataCache[name + '.json'] || null;
+  }
+
+  // Expose globally for components.js and tab files
+  window.loadData = loadData;
+  window.getTabData = getTabData;
+
+  // ── Tab Manager ────────────────────────────────
+  const tabRegistry = {}; // name -> { loader, renderGrid }
+  let activeTab = 'mods';
+  const tabLoadState = {}; // name -> 'loading' | 'loaded' | 'error'
+
+  function registerTab(name, config) {
+    tabRegistry[name] = config;
+  }
+
+  function getActiveTab() { return activeTab; }
+
+  async function switchTab(name, filter) {
+    if (name === activeTab && !filter) return;
+
+    // Update active state in header nav
+    document.querySelectorAll('.tab-btn, .bottom-nav-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.tab === name);
+    });
+
+    // Hide all tab panes, show the target
+    document.querySelectorAll('.tab-pane').forEach(pane => {
+      pane.hidden = true;
+      pane.classList.remove('active');
+    });
+    const pane = document.getElementById('tab-' + name);
+    if (pane) {
+      pane.hidden = false;
+      pane.classList.add('active');
+    }
+
+    activeTab = name;
+    history.replaceState(null, '', '#' + name);
+
+    if (name === 'mods') {
+      // Existing mods tab
+      if (filter && filter.field === 'compatName') {
+        // Apply search filter
+        const searchInput = document.getElementById('search');
+        if (searchInput) {
+          searchInput.value = filter.value;
+          modsFilters.searchTerms.clear();
+          modsFilters.searchTerms.add(filter.value.toLowerCase());
+          applyModsFilters();
+        }
+      }
+      return;
+    }
+
+    const reg = tabRegistry[name];
+    if (!reg) return;
+
+    // Already loaded
+    if (tabLoadState[name] === 'loaded') {
+      if (filter) applyTabFilter(name, filter);
+      return;
+    }
+
+    if (tabLoadState[name] === 'loading') return;
+    tabLoadState[name] = 'loading';
+
+    // Build the tab pane layout
+    if (pane) {
+      pane.innerHTML = `
+        <aside class="tab-sidebar" id="sidebar-${name}"></aside>
+        <div class="tab-content-area" id="content-${name}"></div>`;
+    }
+
+    try {
+      const data = await reg.loader();
+      tabLoadState[name] = 'loaded';
+
+      const sidebarEl = document.getElementById('sidebar-' + name);
+      const contentEl = document.getElementById('content-' + name);
+      if (sidebarEl && contentEl) {
+        reg.renderGrid(data, contentEl, sidebarEl);
+      }
+      if (filter) applyTabFilter(name, filter);
+    } catch (e) {
+      tabLoadState[name] = 'error';
+      if (pane) pane.innerHTML = `<p class="text-muted" style="padding:2rem;">Failed to load ${name} data. Data will be available after the first pipeline run.</p>`;
+      console.error(e);
+    }
+  }
+
+  function applyTabFilter(name, filter) {
+    // Each tab's renderGrid handles its own filtering via sidebar
+    const searchEl = document.getElementById(name.slice(0,-1) + '-search') ||
+                     document.getElementById(name + '-search');
+    if (searchEl && filter.value) {
+      searchEl.value = filter.value;
+      searchEl.dispatchEvent(new Event('input'));
+    }
+  }
+
+  // Expose globally for tab files
+  window.registerTab = registerTab;
+  window.getActiveTab = getActiveTab;
+  window.switchTab = switchTab;
+
+  // ── Modal Nav Stack ────────────────────────────
+  let modalNavStack = [];
+
+  function openModal(item, category) {
+    modalNavStack = [{ item, category }];
+    _renderModal(item, category);
+    modalOverlay.hidden = false;
+    document.body.style.overflow = 'hidden';
+  }
+
+  function pushModalNav(item, category) {
+    modalNavStack.push({ item, category });
+    _renderModal(item, category);
+  }
+
+  function popModalNav() {
+    if (modalNavStack.length <= 1) { closeModal(); return; }
+    modalNavStack.pop();
+    const { item, category } = modalNavStack[modalNavStack.length - 1];
+    _renderModal(item, category);
+  }
+
+  function closeModal() {
+    modalOverlay.hidden = true;
+    document.body.style.overflow = '';
+    modalNavStack = [];
+    hideTooltip();
+  }
+
+  function _renderModal(item, category) {
+    modalContent.innerHTML = renderModalContent(item, category);
+    _updateBreadcrumb();
+
+    if (category === 'weapon' || category === 'warframe') {
+      mountRelatedMods(item, category);
+    }
+  }
+
+  function _updateBreadcrumb() {
+    const bc = document.getElementById('modal-breadcrumb');
+    if (!bc) return;
+    if (modalNavStack.length <= 1) {
+      bc.hidden = true;
+      return;
+    }
+    bc.hidden = false;
+    let html = '<button class="breadcrumb-back" onclick="popModalNav()">←</button><span class="breadcrumb-trail">';
+    for (let i = 0; i < modalNavStack.length - 1; i++) {
+      const entry = modalNavStack[i];
+      html += `<button class="breadcrumb-crumb" data-depth="${i}">${escapeAttr(entry.item.name || '')}</button>
+               <span class="breadcrumb-sep">/</span>`;
+    }
+    const current = modalNavStack[modalNavStack.length - 1];
+    html += `<span class="breadcrumb-current">${esc(current.item.name || '')}</span>`;
+    html += '</span>';
+    bc.innerHTML = html;
+
+    bc.querySelectorAll('.breadcrumb-crumb').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const depth = parseInt(btn.dataset.depth, 10);
+        modalNavStack = modalNavStack.slice(0, depth + 1);
+        const { item, category } = modalNavStack[modalNavStack.length - 1];
+        _renderModal(item, category);
+      });
+    });
+  }
+
+  function renderModalContent(item, category) {
+    switch (category) {
+      case 'mod':      return renderModModal(item);
+      case 'weapon':   return window._renderWeaponModal ? window._renderWeaponModal(item) : '<p>Loading...</p>';
+      case 'warframe': return window._renderWarframeModal ? window._renderWarframeModal(item) : '<p>Loading...</p>';
+      case 'arcane':   return window._renderArcaneModal ? window._renderArcaneModal(item) : '<p>Loading...</p>';
+      case 'relic':    return window._renderRelicModal ? window._renderRelicModal(item) : '<p>Loading...</p>';
+      default:         return '<p>Loading...</p>';
+    }
+  }
+
+  // Expose globally
+  window.openModal = openModal;
+  window.pushModalNav = pushModalNav;
+  window.popModalNav = popModalNav;
+  window.closeModal = closeModal;
 
   // ── State ──────────────────────────────────────
   let allMods = [];
@@ -10,8 +214,7 @@
   let autocompleteCandidates = [];
   let autocompleteActiveIndex = -1;
 
-  // Active filters
-  const filters = {
+  const modsFilters = {
     searchTerms: new Set(),
     types: new Set(),
     compats: new Set(),
@@ -43,12 +246,26 @@
 
   // ── Init ───────────────────────────────────────
   async function init() {
+    // Set up tab navigation
+    document.querySelectorAll('.tab-btn, .bottom-nav-btn').forEach(btn => {
+      btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+
+    // Restore tab from URL hash
+    const hash = location.hash.replace('#', '');
+    if (hash && ['mods','warframes','weapons','arcanes','relics'].includes(hash)) {
+      if (hash !== 'mods') {
+        await switchTab(hash);
+      }
+    }
+
     try {
       const [modsRes, metaRes] = await Promise.all([
         fetch("data/mods.json"),
         fetch("data/meta.json").catch(() => null),
       ]);
       allMods = await modsRes.json();
+      dataCache['mods.json'] = allMods;
 
       if (metaRes && metaRes.ok) {
         const meta = await metaRes.json();
@@ -66,8 +283,7 @@
     loading.hidden = true;
 
     if (allMods.length === 0) {
-      noResults.textContent =
-        "No mod data yet. Data will appear after the first nightly update.";
+      noResults.textContent = "No mod data yet. Data will appear after the first nightly update.";
       noResults.hidden = false;
       return;
     }
@@ -75,43 +291,28 @@
     buildFilterOptions();
     buildAutocompleteList();
     bindEvents();
-    applyFilters();
+    applyModsFilters();
   }
 
   // ── Autocomplete ───────────────────────────────
   function buildAutocompleteList() {
     const names = allMods.map((m) => m.name);
-    const stats = [
-      ...new Set(allMods.flatMap((m) => (m.statTypes || []).map(cleanText))),
-    ];
-    autocompleteCandidates = [...new Set([...names, ...stats])].sort((a, b) =>
-      a.localeCompare(b),
-    );
+    const stats = [...new Set(allMods.flatMap((m) => (m.statTypes || []).map(cleanText)))];
+    autocompleteCandidates = [...new Set([...names, ...stats])].sort((a, b) => a.localeCompare(b));
   }
 
   function showAutocomplete(query) {
-    if (!query || query.length < 2) {
-      hideAutocomplete();
-      return;
-    }
+    if (!query || query.length < 2) { hideAutocomplete(); return; }
     const q = query.toLowerCase();
-    const matches = autocompleteCandidates
-      .filter((c) => c.toLowerCase().includes(q))
-      .slice(0, 8);
-    if (matches.length === 0) {
-      hideAutocomplete();
-      return;
-    }
+    const matches = autocompleteCandidates.filter((c) => c.toLowerCase().includes(q)).slice(0, 8);
+    if (matches.length === 0) { hideAutocomplete(); return; }
 
     autocompleteActiveIndex = -1;
     autocompleteList.innerHTML = "";
     for (const match of matches) {
       const li = document.createElement("li");
       li.textContent = match;
-      li.addEventListener("mousedown", (e) => {
-        e.preventDefault();
-        selectAutocomplete(match);
-      });
+      li.addEventListener("mousedown", (e) => { e.preventDefault(); selectAutocomplete(match); });
       autocompleteList.appendChild(li);
     }
     autocompleteList.hidden = false;
@@ -124,51 +325,38 @@
   }
 
   function selectAutocomplete(text) {
-    filters.searchTerms.add(text.toLowerCase());
+    modsFilters.searchTerms.add(text.toLowerCase());
     searchInput.value = "";
     hideAutocomplete();
-    applyFilters();
+    applyModsFilters();
   }
 
   function moveAutocomplete(dir) {
     const items = autocompleteList.querySelectorAll("li");
     if (!items.length) return;
     items[autocompleteActiveIndex]?.classList.remove("active");
-    autocompleteActiveIndex = Math.max(
-      0,
-      Math.min(items.length - 1, autocompleteActiveIndex + dir),
-    );
+    autocompleteActiveIndex = Math.max(0, Math.min(items.length - 1, autocompleteActiveIndex + dir));
     items[autocompleteActiveIndex].classList.add("active");
   }
 
-  // ── Build filter checkboxes from data ──────────
+  // ── Build filter checkboxes ────────────────────
   function buildFilterOptions() {
     const typeCounts = countBy(allMods, (m) => m.type);
-    const compatCounts = countBy(
-      allMods.filter((m) => m.compatName),
-      (m) => formatCompat(m.compatName),
-    );
+    const compatCounts = countBy(allMods.filter((m) => m.compatName), (m) => formatCompat(m.compatName));
     const rarityCounts = countBy(allMods, (m) => m.rarity);
 
-    // Collect all stat types
     const statCounts = {};
     for (const mod of allMods) {
       for (const s of mod.statTypes || []) {
         const cleaned = cleanText(s);
-        if (cleaned) {
-          statCounts[cleaned] = (statCounts[cleaned] || 0) + 1;
-        }
+        if (cleaned) statCounts[cleaned] = (statCounts[cleaned] || 0) + 1;
       }
     }
 
-    renderCheckboxes("filter-type", sortEntries(typeCounts), filters.types);
-    renderCheckboxes(
-      "filter-compat",
-      sortEntries(compatCounts),
-      filters.compats,
-    );
-    renderCheckboxes("filter-rarity", rarityCounts, filters.rarities);
-    renderCheckboxes("filter-stat", sortEntries(statCounts), filters.stats);
+    renderCheckboxes("filter-type", sortEntries(typeCounts), modsFilters.types);
+    renderCheckboxes("filter-compat", sortEntries(compatCounts), modsFilters.compats);
+    renderCheckboxes("filter-rarity", rarityCounts, modsFilters.rarities);
+    renderCheckboxes("filter-stat", sortEntries(statCounts), modsFilters.stats);
   }
 
   function countBy(arr, fn) {
@@ -194,6 +382,7 @@
 
   function renderCheckboxes(containerId, counts, filterSet) {
     const container = document.getElementById(containerId);
+    if (!container) return;
     container.innerHTML = "";
     for (const [value, count] of Object.entries(counts)) {
       const lbl = document.createElement("label");
@@ -204,18 +393,14 @@
         if (cb.checked) filterSet.add(value);
         else filterSet.delete(value);
 
-        // Sync quick filter buttons for rarity
         if (containerId === "filter-rarity") {
-          const quickBtn = document.querySelector(
-            `.quick-filter-btn[data-rarity="${value}"]`,
-          );
+          const quickBtn = document.querySelector(`.quick-filter-btn[data-rarity="${value}"]`);
           if (quickBtn) {
             if (cb.checked) quickBtn.classList.add("active");
             else quickBtn.classList.remove("active");
           }
         }
-
-        applyFilters();
+        applyModsFilters();
       });
       const span = document.createElement("span");
       span.textContent = value;
@@ -229,25 +414,15 @@
 
   // ── Events ─────────────────────────────────────
   function bindEvents() {
-    searchInput.addEventListener(
-      "input",
-      debounce(() => {
-        const val = searchInput.value.trim();
-        showAutocomplete(val);
-      }, 200),
-    );
+    searchInput.addEventListener("input", debounce(() => {
+      showAutocomplete(searchInput.value.trim());
+    }, 200));
 
     searchInput.addEventListener("keydown", (e) => {
       if (e.key === "ArrowDown") {
-        if (!autocompleteList.hidden) {
-          e.preventDefault();
-          moveAutocomplete(1);
-        }
+        if (!autocompleteList.hidden) { e.preventDefault(); moveAutocomplete(1); }
       } else if (e.key === "ArrowUp") {
-        if (!autocompleteList.hidden) {
-          e.preventDefault();
-          moveAutocomplete(-1);
-        }
+        if (!autocompleteList.hidden) { e.preventDefault(); moveAutocomplete(-1); }
       } else if (e.key === "Enter") {
         e.preventDefault();
         const active = autocompleteList.querySelector("li.active");
@@ -256,10 +431,10 @@
         } else {
           const val = searchInput.value.trim();
           if (val) {
-            filters.searchTerms.add(val.toLowerCase());
+            modsFilters.searchTerms.add(val.toLowerCase());
             searchInput.value = "";
             hideAutocomplete();
-            applyFilters();
+            applyModsFilters();
           }
         }
       } else if (e.key === "Escape") {
@@ -267,22 +442,16 @@
       }
     });
 
-    searchInput.addEventListener("blur", () => {
-      // Small delay to allow autocomplete clicks to register
-      setTimeout(() => hideAutocomplete(), 150);
-    });
+    searchInput.addEventListener("blur", () => setTimeout(() => hideAutocomplete(), 150));
 
-    dropSearchInput.addEventListener(
-      "input",
-      debounce(() => {
-        filters.dropSearch = dropSearchInput.value.trim().toLowerCase();
-        applyFilters();
-      }, 200),
-    );
+    dropSearchInput.addEventListener("input", debounce(() => {
+      modsFilters.dropSearch = dropSearchInput.value.trim().toLowerCase();
+      applyModsFilters();
+    }, 200));
 
     sortSelect.addEventListener("change", () => {
       sortKey = sortSelect.value;
-      applyFilters();
+      applyModsFilters();
     });
 
     loadMore.addEventListener("click", renderMore);
@@ -295,230 +464,189 @@
       });
     });
 
-    sidebarToggle.addEventListener("click", () => {
-      sidebar.classList.toggle("open");
-    });
+    sidebarToggle.addEventListener("click", () => sidebar.classList.toggle("open"));
 
-    // Quick rarity filter buttons
     document.querySelectorAll(".quick-filter-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
         const rarity = btn.dataset.rarity;
         const isActive = btn.classList.toggle("active");
+        if (isActive) modsFilters.rarities.add(rarity);
+        else modsFilters.rarities.delete(rarity);
 
-        if (isActive) {
-          filters.rarities.add(rarity);
-        } else {
-          filters.rarities.delete(rarity);
-        }
-
-        // Sync with advanced rarity checkboxes
-        const checkbox = document.querySelector(
-          `#filter-rarity input[value="${rarity}"]`,
-        );
+        const checkbox = document.querySelector(`#filter-rarity input[value="${rarity}"]`);
         if (checkbox) checkbox.checked = isActive;
-
-        applyFilters();
+        applyModsFilters();
       });
     });
 
-    // Stat search filtering
     const statSearchInput = $("#stat-search");
     if (statSearchInput) {
       statSearchInput.addEventListener("input", (e) => {
         const query = e.target.value.toLowerCase();
-        const checkboxes = document.querySelectorAll(
-          "#filter-stat .checkbox-list label",
-        );
-
-        checkboxes.forEach((label) => {
-          const text = label.textContent.toLowerCase();
-          label.style.display = text.includes(query) ? "flex" : "none";
+        document.querySelectorAll("#filter-stat .checkbox-list label").forEach((label) => {
+          label.style.display = label.textContent.toLowerCase().includes(query) ? "flex" : "none";
         });
       });
     }
 
-    // Filter presets
     document.querySelectorAll(".preset-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
         const preset = btn.dataset.preset;
-
-        // Clear existing filters first
-        filters.search = "";
-        filters.types.clear();
-        filters.compats.clear();
-        filters.stats.clear();
-        filters.rarities.clear();
+        modsFilters.searchTerms.clear();
+        modsFilters.types.clear();
+        modsFilters.compats.clear();
+        modsFilters.stats.clear();
+        modsFilters.rarities.clear();
         searchInput.value = "";
+        sidebar.querySelectorAll('input[type="checkbox"]').forEach((cb) => { cb.checked = false; });
+        document.querySelectorAll(".quick-filter-btn").forEach((qb) => { qb.classList.remove("active"); });
 
-        // Clear all checkboxes and quick buttons
-        sidebar.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
-          cb.checked = false;
-        });
-        document.querySelectorAll(".quick-filter-btn").forEach((qb) => {
-          qb.classList.remove("active");
-        });
-
-        // Apply preset
         if (preset === "primed") {
+          modsFilters.searchTerms.add("primed");
           searchInput.value = "Primed";
-          filters.search = "primed";
-          filters.rarities.add("Legendary");
-          const legendaryCheckbox = document.querySelector(
-            '#filter-rarity input[value="Legendary"]',
-          );
-          if (legendaryCheckbox) legendaryCheckbox.checked = true;
-          const legendaryBtn = document.querySelector(
-            '.quick-filter-btn[data-rarity="Legendary"]',
-          );
-          if (legendaryBtn) legendaryBtn.classList.add("active");
+          modsFilters.rarities.add("Legendary");
+          const cb = document.querySelector('#filter-rarity input[value="Legendary"]');
+          if (cb) cb.checked = true;
+          const btn2 = document.querySelector('.quick-filter-btn[data-rarity="Legendary"]');
+          if (btn2) btn2.classList.add("active");
         } else if (preset === "corrupted") {
+          modsFilters.searchTerms.add("corrupted");
           searchInput.value = "Corrupted";
-          filters.search = "corrupted";
         } else if (preset === "nightmare") {
+          modsFilters.searchTerms.add("nightmare");
           searchInput.value = "Nightmare";
-          filters.search = "nightmare";
         } else if (preset === "acolyte") {
-          // Acolyte mods are typically legendary and have specific names
-          filters.rarities.add("Rare");
-          filters.rarities.add("Legendary");
-          const rareCheckbox = document.querySelector(
-            '#filter-rarity input[value="Rare"]',
-          );
-          const legendaryCheckbox = document.querySelector(
-            '#filter-rarity input[value="Legendary"]',
-          );
-          if (rareCheckbox) rareCheckbox.checked = true;
-          if (legendaryCheckbox) legendaryCheckbox.checked = true;
-          const rareBtn = document.querySelector(
-            '.quick-filter-btn[data-rarity="Rare"]',
-          );
-          const legendaryBtn = document.querySelector(
-            '.quick-filter-btn[data-rarity="Legendary"]',
-          );
-          if (rareBtn) rareBtn.classList.add("active");
-          if (legendaryBtn) legendaryBtn.classList.add("active");
-
-          // Common acolyte mod names
-          const acolyteTerms = [
-            "Argon Scope",
-            "Maiming Strike",
-            "Blood Rush",
-            "Weeping Wounds",
-            "Catalyzer Link",
-            "Hydraulic",
-          ];
-          searchInput.value = acolyteTerms[0];
-          filters.search = acolyteTerms[0].toLowerCase();
+          modsFilters.rarities.add("Rare");
+          modsFilters.rarities.add("Legendary");
+          ['Rare','Legendary'].forEach(r => {
+            const cb = document.querySelector(`#filter-rarity input[value="${r}"]`);
+            if (cb) cb.checked = true;
+            const qb = document.querySelector(`.quick-filter-btn[data-rarity="${r}"]`);
+            if (qb) qb.classList.add("active");
+          });
         }
-
-        applyFilters();
+        applyModsFilters();
       });
     });
 
-    // Grid density toggle
     document.querySelectorAll(".density-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
-        const density = btn.dataset.density;
-
-        // Update active state
-        document.querySelectorAll(".density-btn").forEach((b) => {
-          b.classList.remove("active");
-        });
+        document.querySelectorAll(".density-btn").forEach((b) => b.classList.remove("active"));
         btn.classList.add("active");
-
-        // Update grid class
         grid.classList.remove("compact", "spacious");
-        if (density === "compact") {
-          grid.classList.add("compact");
-        } else if (density === "spacious") {
-          grid.classList.add("spacious");
-        }
-        // "normal" has no extra class
+        if (btn.dataset.density === "compact") grid.classList.add("compact");
+        else if (btn.dataset.density === "spacious") grid.classList.add("spacious");
       });
     });
 
     clearBtn.addEventListener("click", () => {
-      filters.searchTerms.clear();
-      filters.types.clear();
-      filters.compats.clear();
-      filters.stats.clear();
-      filters.rarities.clear();
-      filters.dropSearch = "";
+      modsFilters.searchTerms.clear();
+      modsFilters.types.clear();
+      modsFilters.compats.clear();
+      modsFilters.stats.clear();
+      modsFilters.rarities.clear();
+      modsFilters.dropSearch = "";
       searchInput.value = "";
       dropSearchInput.value = "";
       hideAutocomplete();
-      sidebar.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
-        cb.checked = false;
-      });
-      // Clear quick filter buttons
-      document.querySelectorAll(".quick-filter-btn").forEach((btn) => {
-        btn.classList.remove("active");
-      });
-      // Clear stat search
-      const statSearchInput = $("#stat-search");
-      if (statSearchInput) {
-        statSearchInput.value = "";
-        document
-          .querySelectorAll("#filter-stat .checkbox-list label")
-          .forEach((label) => {
-            label.style.display = "flex";
-          });
+      sidebar.querySelectorAll('input[type="checkbox"]').forEach((cb) => { cb.checked = false; });
+      document.querySelectorAll(".quick-filter-btn").forEach((btn) => { btn.classList.remove("active"); });
+      const statSearchInput2 = $("#stat-search");
+      if (statSearchInput2) {
+        statSearchInput2.value = "";
+        document.querySelectorAll("#filter-stat .checkbox-list label").forEach((label) => { label.style.display = "flex"; });
       }
       sortSelect.value = "name-asc";
       sortKey = "name-asc";
-      applyFilters();
+      applyModsFilters();
     });
 
     modalClose.addEventListener("click", closeModal);
-    modalOverlay.addEventListener("click", (e) => {
-      if (e.target === modalOverlay) closeModal();
+    modalOverlay.addEventListener("click", (e) => { if (e.target === modalOverlay) closeModal(); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
+
+    // Delegated modal content click handler
+    modalContent.addEventListener('click', async e => {
+      const navLink = e.target.closest('[data-nav-item]');
+      if (navLink) {
+        const name = navLink.dataset.navItem;
+        const category = navLink.dataset.navCategory;
+        let found = null;
+
+        if (category === 'mod') {
+          const mods = getTabData('mods') || allMods;
+          found = mods.find(m => m.name === name);
+          if (found) pushModalNav(found, 'mod');
+          return;
+        }
+
+        if (category === 'weapon') {
+          let weapons = getTabData('weapons');
+          if (!weapons) weapons = await loadData('weapons.json');
+          found = (weapons || []).find(w => w.name === name);
+          if (found) pushModalNav(found, 'weapon');
+        } else if (category === 'warframe') {
+          let warframes = getTabData('warframes');
+          if (!warframes) warframes = await loadData('warframes.json');
+          found = (warframes || []).find(w => w.name === name);
+          if (found) pushModalNav(found, 'warframe');
+        }
+        return;
+      }
+
+      const filterLink = e.target.closest('[data-filter-tab]');
+      if (filterLink) {
+        closeModal();
+        switchTab(filterLink.dataset.filterTab, {
+          field: filterLink.dataset.filterField,
+          value: filterLink.dataset.filterValue,
+        });
+      }
     });
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") closeModal();
-    });
+
+    // Tooltip on modal content (desktop only)
+    if (window.matchMedia('(hover: hover)').matches) {
+      modalContent.addEventListener('mouseover', e => {
+        const chip = e.target.closest('.cross-link-item');
+        if (!chip) return;
+        const name = chip.dataset.navItem;
+        const category = chip.dataset.navCategory;
+        const tabName = category === 'weapon' ? 'weapons' : 'warframes';
+        const data = getTabData(tabName) || [];
+        const item = data.find(i => i.name === name);
+        if (item) showTooltip(chip, item, category);
+      });
+      modalContent.addEventListener('mouseleave', hideTooltip);
+    }
   }
 
-  // ── Filtering ──────────────────────────────────
-  function applyFilters() {
+  // ── Mods filtering ─────────────────────────────
+  function applyModsFilters() {
     filtered = allMods.filter((mod) => {
-      // Check all search terms (AND logic - all must match)
-      for (const q of filters.searchTerms) {
+      for (const q of modsFilters.searchTerms) {
         const inName = mod.name.toLowerCase().includes(q);
         const inDesc = (mod.description || "").toLowerCase().includes(q);
-        const inStats = (mod.statTypes || []).some((s) =>
-          cleanText(s).toLowerCase().includes(q),
-        );
+        const inStats = (mod.statTypes || []).some((s) => cleanText(s).toLowerCase().includes(q));
         const inCompat = (mod.compatName || "").toLowerCase().includes(q);
         if (!inName && !inDesc && !inStats && !inCompat) return false;
       }
 
-      if (filters.types.size > 0 && !filters.types.has(mod.type)) {
-        return false;
+      if (modsFilters.types.size > 0 && !modsFilters.types.has(mod.type)) return false;
+
+      if (modsFilters.compats.size > 0) {
+        if (!modsFilters.compats.has(formatCompat(mod.compatName))) return false;
       }
 
-      if (filters.compats.size > 0) {
-        const fc = formatCompat(mod.compatName);
-        if (!filters.compats.has(fc)) return false;
-      }
+      if (modsFilters.rarities.size > 0 && !modsFilters.rarities.has(mod.rarity)) return false;
 
-      if (filters.rarities.size > 0 && !filters.rarities.has(mod.rarity)) {
-        return false;
-      }
-
-      if (filters.stats.size > 0) {
+      if (modsFilters.stats.size > 0) {
         const modStats = (mod.statTypes || []).map(cleanText);
-        if (!modStats.some((s) => filters.stats.has(s))) return false;
+        if (!modStats.some((s) => modsFilters.stats.has(s))) return false;
       }
 
-      if (filters.dropSearch) {
+      if (modsFilters.dropSearch) {
         const drops = mod.drops || [];
-        if (
-          !drops.some((d) =>
-            d.location.toLowerCase().includes(filters.dropSearch),
-          )
-        ) {
-          return false;
-        }
+        if (!drops.some((d) => d.location.toLowerCase().includes(modsFilters.dropSearch))) return false;
       }
 
       return true;
@@ -534,10 +662,10 @@
 
   function updateFilterGroupCounts() {
     const entries = [
-      { id: "count-type", set: filters.types },
-      { id: "count-compat", set: filters.compats },
-      { id: "count-stat", set: filters.stats },
-      { id: "count-rarity", set: filters.rarities },
+      { id: "count-type", set: modsFilters.types },
+      { id: "count-compat", set: modsFilters.compats },
+      { id: "count-stat", set: modsFilters.stats },
+      { id: "count-rarity", set: modsFilters.rarities },
     ];
     for (const { id, set } of entries) {
       const el = document.getElementById(id);
@@ -567,56 +695,31 @@
     };
 
     const uncheckIn = (containerId, value) => {
-      document
-        .querySelectorAll(`#${containerId} input[type=checkbox]`)
-        .forEach((cb) => {
-          if (cb.value === value) cb.checked = false;
-        });
+      document.querySelectorAll(`#${containerId} input[type=checkbox]`).forEach((cb) => {
+        if (cb.value === value) cb.checked = false;
+      });
     };
 
-    // Search term chips
-    for (const term of filters.searchTerms) {
-      addChip(
-        `🔍 ${term}`,
-        () => {
-          filters.searchTerms.delete(term);
-          applyFilters();
-        },
-        "search",
-      );
+    for (const term of modsFilters.searchTerms) {
+      addChip(`🔍 ${term}`, () => { modsFilters.searchTerms.delete(term); applyModsFilters(); }, "search");
     }
 
-    for (const v of filters.types) {
-      addChip(v, () => {
-        filters.types.delete(v);
-        uncheckIn("filter-type", v);
-        applyFilters();
-      });
+    for (const v of modsFilters.types) {
+      addChip(v, () => { modsFilters.types.delete(v); uncheckIn("filter-type", v); applyModsFilters(); });
     }
-    for (const v of filters.compats) {
-      addChip(v, () => {
-        filters.compats.delete(v);
-        uncheckIn("filter-compat", v);
-        applyFilters();
-      });
+    for (const v of modsFilters.compats) {
+      addChip(v, () => { modsFilters.compats.delete(v); uncheckIn("filter-compat", v); applyModsFilters(); });
     }
-    for (const v of filters.stats) {
-      addChip(v, () => {
-        filters.stats.delete(v);
-        uncheckIn("filter-stat", v);
-        applyFilters();
-      });
+    for (const v of modsFilters.stats) {
+      addChip(v, () => { modsFilters.stats.delete(v); uncheckIn("filter-stat", v); applyModsFilters(); });
     }
-    for (const v of filters.rarities) {
+    for (const v of modsFilters.rarities) {
       addChip(v, () => {
-        filters.rarities.delete(v);
+        modsFilters.rarities.delete(v);
         uncheckIn("filter-rarity", v);
-        // Sync quick filter buttons
-        const quickBtn = document.querySelector(
-          `.quick-filter-btn[data-rarity="${v}"]`,
-        );
+        const quickBtn = document.querySelector(`.quick-filter-btn[data-rarity="${v}"]`);
         if (quickBtn) quickBtn.classList.remove("active");
-        applyFilters();
+        applyModsFilters();
       });
     }
   }
@@ -626,13 +729,12 @@
     const mult = dir === "asc" ? 1 : -1;
     filtered.sort((a, b) => {
       if (key === "name") return mult * a.name.localeCompare(b.name);
-      if (key === "drain")
-        return mult * ((a.baseDrain || 0) - (b.baseDrain || 0));
+      if (key === "drain") return mult * ((a.baseDrain || 0) - (b.baseDrain || 0));
       return 0;
     });
   }
 
-  // ── Rendering ──────────────────────────────────
+  // ── Mods rendering ─────────────────────────────
   function renderMore() {
     const end = Math.min(displayed + PAGE_SIZE, filtered.length);
     const fragment = document.createDocumentFragment();
@@ -652,19 +754,17 @@
   function createCard(mod) {
     const card = document.createElement("article");
     card.className = `mod-card rarity-${(mod.rarity || "common").toLowerCase()}`;
-    card.addEventListener("click", () => openModal(mod));
+    card.addEventListener("click", () => openModal(mod, 'mod'));
 
     const rarityClass = (mod.rarity || "common").toLowerCase();
-    const thumbSrc = mod.wikiaThumbnail || "";
+    const thumbSrc = itemImageUrl(mod);
     const maxStats = getMaxStats(mod);
 
     card.innerHTML = `
       <div class="mod-card-header">
-        ${
-          thumbSrc
-            ? `<img class="mod-card-thumb" src="${escapeAttr(thumbSrc)}" alt="" loading="lazy">`
-            : `<div class="mod-card-thumb"></div>`
-        }
+        ${thumbSrc
+          ? `<img class="mod-card-thumb" src="${escapeAttr(thumbSrc)}" alt="" loading="lazy">`
+          : `<div class="mod-card-thumb"></div>`}
         <div class="mod-card-title">
           <div class="mod-card-name">${esc(mod.name)}</div>
           <div class="mod-card-type">${esc(mod.type)}${mod.compatName ? " - " + esc(formatCompat(mod.compatName)) : ""}</div>
@@ -690,18 +790,18 @@
     return stats.slice(0, 2).join(", ");
   }
 
-  // ── Modal ──────────────────────────────────────
-  function openModal(mod) {
+  // ── Mod Modal ──────────────────────────────────
+  function renderModModal(mod) {
     const rarityClass = (mod.rarity || "common").toLowerCase();
     const wikiUrl = `https://warframe.fandom.com/wiki/${encodeURIComponent(cleanText(mod.name).replace(/ /g, "_"))}`;
-    const modImage = mod.wikiaThumbnail || "";
+    const modImage = itemImageUrl(mod);
 
     let html = `
       <div class="modal-header">
         ${modImage ? `<img src="${escapeAttr(modImage)}" alt="${escapeAttr(cleanText(mod.name))}" class="modal-mod-image">` : ""}
         <div class="modal-header-text">
           <h2>${esc(mod.name)}</h2>
-          <p class="modal-type">${esc(mod.type)}${mod.compatName ? " - " + esc(formatCompat(mod.compatName)) : ""}</p>
+          <p class="modal-type">${esc(mod.type)}${mod.compatName ? " - " + renderCompatChip(mod.compatName) : ""}</p>
         </div>
       </div>
     `;
@@ -710,7 +810,6 @@
       html += `<div class="modal-section"><h3>Description</h3><p>${esc(mod.description)}</p></div>`;
     }
 
-    // Info badges
     html += `<div class="modal-section mod-card-badges" style="flex-wrap:wrap;">
       <span class="badge badge-${rarityClass}">${esc(mod.rarity)}</span>
       ${mod.polarity ? `<span class="badge badge-polarity">${esc(mod.polarity)}</span>` : ""}
@@ -720,7 +819,6 @@
       <a href="${wikiUrl}" target="_blank" rel="noopener noreferrer" class="badge badge-polarity" style="text-decoration:none;">📖 Wiki</a>
     </div>`;
 
-    // Stats table
     if (Array.isArray(mod.levelStats) && mod.levelStats.length > 0) {
       html += `<div class="modal-section"><h3>Stats by Rank</h3><table class="stat-table"><thead><tr><th>Rank</th><th>Effects</th></tr></thead><tbody>`;
       mod.levelStats.forEach((level, i) => {
@@ -732,34 +830,49 @@
       html += `</tbody></table></div>`;
     }
 
-    // Drops
     if (mod.drops && mod.drops.length > 0) {
-      html += `<div class="modal-section"><h3>Drop Sources</h3><ul class="drop-list">`;
-      const topDrops = mod.drops.slice(0, 20);
-      for (const d of topDrops) {
-        const pct = (d.chance * 100).toFixed(2);
-        html += `<li><span>${esc(d.location)}</span><span class="drop-chance">${pct}%</span></li>`;
-      }
-      if (mod.drops.length > 20) {
-        html += `<li><span style="color:var(--text-muted)">...and ${mod.drops.length - 20} more</span><span></span></li>`;
-      }
-      html += `</ul></div>`;
+      html += `<div class="modal-section"><h3>Drop Sources</h3>${renderDropTable(mod.drops)}</div>`;
     }
 
-    modalContent.innerHTML = html;
-    modalOverlay.hidden = false;
-    document.body.style.overflow = "hidden";
+    return html;
   }
 
-  function closeModal() {
-    modalOverlay.hidden = true;
-    document.body.style.overflow = "";
+  // ── Compat Chip ─────────────────────────────────
+  function renderCompatChip(compatName) {
+    if (!compatName) return '';
+    const upper = compatName.toUpperCase();
+    if (upper === 'ANY' || upper === 'UNIQUE' || upper === 'MOD') {
+      return esc(formatCompat(compatName));
+    }
+
+    // Try to resolve from cached data
+    const weapons = getTabData('weapons') || [];
+    const warframes = getTabData('warframes') || [];
+
+    const weapon = weapons.find(w => w.name.toUpperCase() === upper);
+    if (weapon) {
+      return `<button class="cross-link cross-link-item"
+        data-nav-item="${escapeAttr(weapon.name)}"
+        data-nav-category="weapon">${esc(formatCompat(compatName))} ↗</button>`;
+    }
+
+    const warframe = warframes.find(w => w.name.toUpperCase() === upper);
+    if (warframe) {
+      return `<button class="cross-link cross-link-item"
+        data-nav-item="${escapeAttr(warframe.name)}"
+        data-nav-category="warframe">${esc(formatCompat(compatName))} ↗</button>`;
+    }
+
+    // Generic category filter chip
+    return `<button class="cross-link cross-link-filter"
+      data-filter-tab="weapons"
+      data-filter-field="type"
+      data-filter-value="${escapeAttr(compatName)}">${esc(formatCompat(compatName))} →</button>`;
   }
 
   // ── Helpers ────────────────────────────────────
   function cleanText(s) {
     if (!s) return s;
-    // Strip out color tags like <DT_PUNCTURE_COLOR> and other markup tags
     return s.replace(/<[^>]+>/g, "");
   }
 
@@ -772,7 +885,8 @@
   }
 
   function escapeAttr(s) {
-    return s
+    if (!s) return '';
+    return String(s)
       .replace(/&/g, "&amp;")
       .replace(/"/g, "&quot;")
       .replace(/</g, "&lt;")
@@ -781,10 +895,7 @@
 
   function debounce(fn, ms) {
     let t;
-    return (...args) => {
-      clearTimeout(t);
-      t = setTimeout(() => fn(...args), ms);
-    };
+    return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
   }
 
   // ── Boot ───────────────────────────────────────
