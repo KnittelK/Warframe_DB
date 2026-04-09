@@ -9,10 +9,14 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+import merge_arcanes
 import merge_mods
+import merge_relics
+import merge_warframes
+import merge_weapons
 from lib import writers
 
-PIPELINES = [merge_mods]  # #4-7 will add to this list
+PIPELINES = [merge_mods, merge_weapons, merge_warframes, merge_arcanes, merge_relics]
 
 
 def main() -> None:
@@ -34,6 +38,10 @@ def main() -> None:
         {
             "modCount": mod_result.get("count", 0),
             "deAvailable": mod_result.get("deAvailable", False),
+            "weaponCount": results.get("weapons", {}).get("count", 0),
+            "warframeCount": results.get("warframes", {}).get("count", 0),
+            "arcaneCount": results.get("arcanes", {}).get("count", 0),
+            "relicCount": results.get("relics", {}).get("count", 0),
         }
     )
     print("Wrote meta.json")
