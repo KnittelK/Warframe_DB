@@ -81,7 +81,9 @@
   // ── Autocomplete ───────────────────────────────
   function buildAutocompleteList() {
     const names = allMods.map((m) => m.name);
-    const stats = [...new Set(allMods.flatMap((m) => m.statTypes || []))];
+    const stats = [
+      ...new Set(allMods.flatMap((m) => (m.statTypes || []).map(cleanText))),
+    ];
     autocompleteCandidates = [...new Set([...names, ...stats])].sort((a, b) =>
       a.localeCompare(b),
     );
@@ -152,12 +154,19 @@
     const statCounts = {};
     for (const mod of allMods) {
       for (const s of mod.statTypes || []) {
-        statCounts[s] = (statCounts[s] || 0) + 1;
+        const cleaned = cleanText(s);
+        if (cleaned) {
+          statCounts[cleaned] = (statCounts[cleaned] || 0) + 1;
+        }
       }
     }
 
-    renderCheckboxes("filter-type", typeCounts, filters.types);
-    renderCheckboxes("filter-compat", compatCounts, filters.compats);
+    renderCheckboxes("filter-type", sortEntries(typeCounts), filters.types);
+    renderCheckboxes(
+      "filter-compat",
+      sortEntries(compatCounts),
+      filters.compats,
+    );
     renderCheckboxes("filter-rarity", rarityCounts, filters.rarities);
     renderCheckboxes("filter-stat", sortEntries(statCounts), filters.stats);
   }
@@ -168,12 +177,13 @@
       const k = fn(item);
       if (k) m[k] = (m[k] || 0) + 1;
     }
-    return sortEntries(m);
+    return m;
   }
 
   function sortEntries(obj) {
     const sorted = {};
-    for (const k of Object.keys(obj).sort()) sorted[k] = obj[k];
+    const keys = Object.keys(obj).sort((a, b) => obj[b] - obj[a]);
+    for (const k of keys) sorted[k] = obj[k];
     return sorted;
   }
 
@@ -464,7 +474,7 @@
         const inName = mod.name.toLowerCase().includes(q);
         const inDesc = (mod.description || "").toLowerCase().includes(q);
         const inStats = (mod.statTypes || []).some((s) =>
-          s.toLowerCase().includes(q),
+          cleanText(s).toLowerCase().includes(q),
         );
         if (!inName && !inDesc && !inStats) return false;
       }
@@ -483,7 +493,7 @@
       }
 
       if (filters.stats.size > 0) {
-        const modStats = mod.statTypes || [];
+        const modStats = (mod.statTypes || []).map(cleanText);
         if (!modStats.some((s) => filters.stats.has(s))) return false;
       }
 
