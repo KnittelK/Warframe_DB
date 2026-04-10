@@ -194,6 +194,37 @@ main {
     transform: scale(0.98);
 }
 
+/* ── Mod Property Toggles ──────────────────────── */
+.mod-prop-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.mod-prop-btn {
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    color: var(--text-muted);
+    padding: 0.3rem 0.75rem;
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-family: inherit;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.mod-prop-btn:hover {
+    border-color: var(--accent-dim);
+    color: var(--text);
+}
+
+.mod-prop-btn.active {
+    background: rgba(196, 162, 78, 0.15);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
 .filter-group-header {
     display: flex;
     align-items: center;
@@ -430,6 +461,18 @@ main {
     background: rgba(136, 176, 255, 0.15);
     border-color: rgba(136, 176, 255, 0.4);
     color: #88b0ff;
+}
+
+.filter-chip.chip-planet {
+    background: rgba(100, 200, 140, 0.12);
+    border-color: rgba(100, 200, 140, 0.4);
+    color: #64c88c;
+}
+
+.filter-chip.chip-prop {
+    background: rgba(196, 162, 78, 0.12);
+    border-color: rgba(196, 162, 78, 0.35);
+    color: var(--accent);
 }
 
 .chip-remove {
@@ -1065,6 +1108,21 @@ a.badge:hover {
     padding: 0.25rem 0;
     border-bottom: 1px solid var(--border);
     font-size: 0.8rem;
+}
+
+.drop-loc-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.drop-context {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .drop-bar-track {
