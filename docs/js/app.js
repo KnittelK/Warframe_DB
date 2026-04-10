@@ -221,6 +221,8 @@
     stats: new Set(),
     rarities: new Set(),
     dropSearch: "",
+    planets: new Set(),
+    modProps: new Set(),
   };
 
   let sortKey = "name-asc";
@@ -353,10 +355,30 @@
       }
     }
 
+    // Planet counts: collect unique planets from mod drops
+    const planetCounts = {};
+    for (const mod of allMods) {
+      const seen = new Set();
+      for (const drop of (mod.drops || [])) {
+        if (drop.planet && !seen.has(drop.planet)) {
+          seen.add(drop.planet);
+          planetCounts[drop.planet] = (planetCounts[drop.planet] || 0) + 1;
+        }
+      }
+    }
+
     renderCheckboxes("filter-type", sortEntries(typeCounts), modsFilters.types);
     renderCheckboxes("filter-compat", sortEntries(compatCounts), modsFilters.compats);
     renderCheckboxes("filter-rarity", rarityCounts, modsFilters.rarities);
     renderCheckboxes("filter-stat", sortEntries(statCounts), modsFilters.stats);
+
+    // Planet filter — only render the section if any planets are present
+    const planetContainer = document.getElementById("filter-planet");
+    if (planetContainer && Object.keys(planetCounts).length > 0) {
+      renderCheckboxes("filter-planet", sortEntries(planetCounts), modsFilters.planets);
+    } else if (document.getElementById("group-planet")) {
+      document.getElementById("group-planet").style.display = "none";
+    }
   }
 
   function countBy(arr, fn) {
@@ -497,9 +519,12 @@
         modsFilters.compats.clear();
         modsFilters.stats.clear();
         modsFilters.rarities.clear();
+        modsFilters.planets.clear();
+        modsFilters.modProps.clear();
         searchInput.value = "";
         sidebar.querySelectorAll('input[type="checkbox"]').forEach((cb) => { cb.checked = false; });
         document.querySelectorAll(".quick-filter-btn").forEach((qb) => { qb.classList.remove("active"); });
+        document.querySelectorAll(".mod-prop-btn").forEach((qb) => { qb.classList.remove("active"); });
 
         if (preset === "primed") {
           modsFilters.searchTerms.add("primed");
@@ -529,6 +554,16 @@
       });
     });
 
+    document.querySelectorAll(".mod-prop-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const prop = btn.dataset.prop;
+        const isActive = btn.classList.toggle("active");
+        if (isActive) modsFilters.modProps.add(prop);
+        else modsFilters.modProps.delete(prop);
+        applyModsFilters();
+      });
+    });
+
     document.querySelectorAll(".density-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
         document.querySelectorAll(".density-btn").forEach((b) => b.classList.remove("active"));
@@ -546,11 +581,14 @@
       modsFilters.stats.clear();
       modsFilters.rarities.clear();
       modsFilters.dropSearch = "";
+      modsFilters.planets.clear();
+      modsFilters.modProps.clear();
       searchInput.value = "";
       dropSearchInput.value = "";
       hideAutocomplete();
       sidebar.querySelectorAll('input[type="checkbox"]').forEach((cb) => { cb.checked = false; });
       document.querySelectorAll(".quick-filter-btn").forEach((btn) => { btn.classList.remove("active"); });
+      document.querySelectorAll(".mod-prop-btn").forEach((btn) => { btn.classList.remove("active"); });
       const statSearchInput2 = $("#stat-search");
       if (statSearchInput2) {
         statSearchInput2.value = "";
@@ -649,6 +687,18 @@
         if (!drops.some((d) => d.location.toLowerCase().includes(modsFilters.dropSearch))) return false;
       }
 
+      if (modsFilters.planets.size > 0) {
+        const drops = mod.drops || [];
+        if (!drops.some((d) => d.planet && modsFilters.planets.has(d.planet))) return false;
+      }
+
+      if (modsFilters.modProps.size > 0) {
+        if (modsFilters.modProps.has("augment") && !mod.isAugment) return false;
+        if (modsFilters.modProps.has("exilus") && !mod.isExilus) return false;
+        if (modsFilters.modProps.has("utility") && !mod.isUtility) return false;
+        if (modsFilters.modProps.has("tradable") && !mod.tradable) return false;
+      }
+
       return true;
     });
 
@@ -666,6 +716,7 @@
       { id: "count-compat", set: modsFilters.compats },
       { id: "count-stat", set: modsFilters.stats },
       { id: "count-rarity", set: modsFilters.rarities },
+      { id: "count-planet", set: modsFilters.planets },
     ];
     for (const { id, set } of entries) {
       const el = document.getElementById(id);
@@ -721,6 +772,22 @@
         if (quickBtn) quickBtn.classList.remove("active");
         applyModsFilters();
       });
+    }
+    for (const v of modsFilters.planets) {
+      addChip(v, () => {
+        modsFilters.planets.delete(v);
+        uncheckIn("filter-planet", v);
+        applyModsFilters();
+      }, "planet");
+    }
+    for (const v of modsFilters.modProps) {
+      const label = v.charAt(0).toUpperCase() + v.slice(1);
+      addChip(label, () => {
+        modsFilters.modProps.delete(v);
+        const propBtn = document.querySelector(`.mod-prop-btn[data-prop="${v}"]`);
+        if (propBtn) propBtn.classList.remove("active");
+        applyModsFilters();
+      }, "prop");
     }
   }
 

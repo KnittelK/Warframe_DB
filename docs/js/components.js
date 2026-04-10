@@ -10,19 +10,36 @@ function renderDropTable(drops) {
     return drop.chance <= 1 ? drop.chance * 100 : drop.chance;
   }
 
-  function groupFor(location) {
-    const loc = location.toLowerCase();
+  function groupFor(drop) {
+    // Prefer the structured 'type' field when present
+    if (drop.type) {
+      const t = drop.type.toLowerCase();
+      if (t === 'enemy' || t === 'boss') return 'Enemy';
+      if (t === 'relic' || t === 'void fissure') return 'Relic';
+      if (t === 'mission' || t === 'bounty' || t === 'rotation') return 'Mission';
+    }
+    // Fallback: infer from location string
+    const loc = (drop.location || '').toLowerCase();
     if (/relic|void fissure/i.test(loc)) return 'Relic';
     if (/rotation|nightmare|sortie|bounty|spy/i.test(loc)) return 'Mission';
     if (/drop|boss|enemy/i.test(loc)) return 'Enemy';
-    return 'Other';
+    return 'Mission'; // most drops are mission drops
+  }
+
+  function dropContextHtml(drop) {
+    if (!drop.planet) return '';
+    const parts = [escComp(drop.planet)];
+    if (drop.missionType) parts.push(escComp(drop.missionType));
+    if (drop.faction) parts.push(escComp(drop.faction));
+    if (drop.levelMax > 0) parts.push(`Lv ${drop.levelMin}–${drop.levelMax}`);
+    return `<span class="drop-context">${parts.join(' · ')}</span>`;
   }
 
   const maxPct = Math.max(...drops.map(normPct));
   const groups = {};
 
   for (const drop of drops) {
-    const grp = groupFor(drop.location);
+    const grp = groupFor(drop);
     if (!groups[grp]) groups[grp] = [];
     groups[grp].push(drop);
   }
@@ -47,7 +64,10 @@ function renderDropTable(drops) {
         ? `<span class="badge badge-${drop.rarity.toLowerCase()}">${escComp(drop.rarity)}</span>`
         : '';
       html += `<div class="drop-row">
-        <span class="drop-location">${escComp(drop.location)}</span>
+        <div class="drop-loc-wrap">
+          <span class="drop-location">${escComp(drop.location)}</span>
+          ${dropContextHtml(drop)}
+        </div>
         ${rarityBadge}
         <span class="drop-pct">${pct.toFixed(2)}%</span>
         <div class="drop-bar-track"><div class="drop-bar-fill" style="width:${barW}%"></div></div>

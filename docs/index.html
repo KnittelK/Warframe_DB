@@ -59,6 +59,16 @@
                             </div>
                         </div>
 
+                        <div class="filter-group" id="group-modprops">
+                            <label class="filter-label">Mod Properties</label>
+                            <div class="mod-prop-buttons">
+                                <button class="mod-prop-btn" data-prop="augment">Augment</button>
+                                <button class="mod-prop-btn" data-prop="exilus">Exilus</button>
+                                <button class="mod-prop-btn" data-prop="utility">Utility</button>
+                                <button class="mod-prop-btn" data-prop="tradable">Tradable</button>
+                            </div>
+                        </div>
+
                         <div class="filter-group">
                             <label class="filter-label">Quick Filters</label>
                             <div class="quick-filter-grid">
@@ -202,6 +212,30 @@
                                     id="drop-search"
                                     placeholder="Mission, enemy, relic..."
                                 />
+                            </div>
+                        </div>
+
+                        <div
+                            class="filter-group collapsible collapsed"
+                            id="group-planet"
+                        >
+                            <button
+                                class="filter-group-header"
+                                aria-expanded="false"
+                            >
+                                <span>Planet</span>
+                                <span
+                                    class="filter-active-count"
+                                    id="count-planet"
+                                    hidden
+                                ></span>
+                                <span class="toggle-arrow">▾</span>
+                            </button>
+                            <div class="filter-group-body">
+                                <div
+                                    id="filter-planet"
+                                    class="checkbox-list scrollable"
+                                ></div>
                             </div>
                         </div>
 
